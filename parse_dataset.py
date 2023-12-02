@@ -26,7 +26,7 @@ key = ''
 columns = list(data_frame.columns)[3:]
 for i in data_frame.index:
     row = []
-    for tag in columns[1:]:
+    for tag in columns:
         row.append(data_frame[tag][i])
     if data_frame['subject'][i] == key:
         data_by_part[key].append(row)
@@ -35,6 +35,8 @@ for i in data_frame.index:
         data_by_part[key] = [row]
 
 #Test written
+test_data = [data_by_part[key][50:] for key in data_by_part]
+
 #takes as data for training first 20 entries pf every subject
 positive_couples = []
 for key in data_by_part:
@@ -67,8 +69,8 @@ text_X1 = np.array(text_X1)
 text_X2 = np.array(text_X2)
 
 #for reshape dividors of 30 had to be chosen (don't know if fitting for the task)
-text_X1 = text_X1.reshape((len(negative_couples) + len(positive_couples), 3, 2, 5))
-text_X2 = text_X2.reshape((len(negative_couples) + len(positive_couples), 3, 2, 5))
+#text_X1 = text_X1.reshape((len(negative_couples) + len(positive_couples), 3, 2, 5))
+#text_X2 = text_X2.reshape((len(negative_couples) + len(positive_couples), 3, 2, 5))
 
 text_X1 = 1 - text_X1/255
 text_X2 = 1 - text_X2/255
@@ -77,7 +79,7 @@ print("Text data: ", text_X1.shape, text_X2.shape, text_y.shape)
 
 #Save test data
 f = open(os.getcwd()+"/test_texts.pk1",'wb')
-pickle.dump([data_by_part[key][:20] for key in data_by_part],f)
+pickle.dump(test_data,f)
 f.close()
 
 #train model
