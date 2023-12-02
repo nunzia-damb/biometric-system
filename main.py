@@ -1,2 +1,2 @@
-def train_keystrokes_rec(x1,x2,y):
+def train_keystrokes_rec(x1, x2, y):
     pass
