@@ -8,7 +8,6 @@ from keras import backend as K
 from keras.utils import plot_model
 from scipy import spatial
 from sklearn.metrics import confusion_matrix
-from main import train_keystrokes_rec
 import warnings
 
 warnings.filterwarnings('ignore')
