@@ -13,8 +13,8 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# import model
-
+#import model
+from train import train_keystrokes_rec
 
 # parse excel
 data_frame = pd.read_csv('data/DSL-StrongPasswordData.csv')
@@ -36,8 +36,8 @@ for i in data_frame.index:
         key = data_frame['subject'][i]
         data_by_part[key] = [row]
 
-# Test written, exclude the first 50 samples for each user from each session
-test_data = [data_by_part[key][50:] for key in data_by_part]
+#Test written
+test_data = [data_by_part[key][200:] for key in data_by_part]
 
 # takes as data for training first 20 list of[features session x] for every subject
 positive_couples = []
@@ -71,9 +71,9 @@ text_y = np.array(text_y)
 text_X1 = np.array(text_X1)
 text_X2 = np.array(text_X2)
 
-# for reshape dividers of 30 had to be chosen (don't know if fitting for the task)
-# text_X1 = text_X1.reshape((len(negative_couples) + len(positive_couples), 3, 2, 5))
-# text_X2 = text_X2.reshape((len(negative_couples) + len(positive_couples), 3, 2, 5))
+#for reshape dividors of 30 had to be chosen (don't know if fitting for the task)
+text_X1 = text_X1.reshape((len(negative_couples) + len(positive_couples), 31, 1, 1))
+text_X2 = text_X2.reshape((len(negative_couples) + len(positive_couples), 31, 1, 1))
 
 text_X1 = 1 - text_X1 / 255
 text_X2 = 1 - text_X2 / 255
