@@ -54,7 +54,7 @@ for key1 in data_by_part:
 text_X1 = []
 text_X2 = []
 text_y = []
-
+'''
 # Create pairs of keystroke features and set target label for them. Target output is 1 if a pair comes from the same
 # user else it is 0
 text_X1.extend([[sample[0] for sample in positive_couples]])
@@ -64,7 +64,15 @@ text_y.extend([1] * len(positive_couples))
 text_X1.append([[sample[0] for sample in negative_couples]])
 text_X2.append([[sample[1] for sample in negative_couples]])
 text_y.extend([0] * len(negative_couples))
-
+'''
+for sample in positive_couples:
+    text_X1.append(sample[0])
+    text_X2.append(sample[1])
+    text_y.append(1)
+for sample in negative_couples:
+    text_X1.append(sample[0])
+    text_X2.append(sample[1])
+    text_y.append(0)
 
 text_y = np.array(text_y)
 text_X1 = np.array(text_X1)
