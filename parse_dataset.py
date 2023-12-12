@@ -3,10 +3,35 @@ from math import floor
 
 import numpy as np
 
-PATH = 'data/'
+PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
 import os
 
-keystrokes = ['102_keystrokes.txt' , '103_keystrokes.txt', '105_keystrokes.txt']
+# fix random seed for reproducibility
+np.random.seed(42069)
+
+keystrokes = '''100390_keystrokes.txt
+100395_keystrokes.txt
+100396_keystrokes.txt
+100397_keystrokes.txt
+100410_keystrokes.txt
+100416_keystrokes.txt
+100417_keystrokes.txt
+100419_keystrokes.txt
+100420_keystrokes.txt
+100421_keystrokes.txt
+100422_keystrokes.txt
+100423_keystrokes.txt
+100425_keystrokes.txt
+100426_keystrokes.txt
+100431_keystrokes.txt
+100432_keystrokes.txt
+100434_keystrokes.txt
+100438_keystrokes.txt
+100439_keystrokes.txt
+100444_keystrokes.txt
+100445_keystrokes.txt
+100446_keystrokes.txt
+100447_keystrokes.txt'''.split('\n')
 d = {}
 
 
@@ -159,3 +184,5 @@ train_X2 = np.array(train_X2).astype(np.float32)
 test_y = np.array(test_y).astype(np.float32)
 test_X1 = np.array(test_X1).astype(np.float32)
 test_X2 = np.array(test_X2).astype(np.float32)
+
+pass

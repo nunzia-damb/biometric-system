@@ -53,32 +53,21 @@ def create_siamese_model(input_shape):
 
     base_network = create_base_network(input_shape)
 
-    processed_a = base_network(input_a)
-    processed_b = base_network(input_b)
+    feature_vector_A = base_network(input_a)
+    feature_vector_B = base_network(input_b)
 
-    distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+    # concat = Concatenate()([feature_vector_A, feature_vector_B])
+    # dense = Dense(64, activation='relu')(concat)
 
-    Dense(1, activation='sigmoid')(distance)
+    distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([feature_vector_A, feature_vector_B])
+
+    # sig = Dense(1, activation='sigmoid')(distance)
 
     model = Model(inputs=[input_a, input_b], outputs=distance)
 
     return model
 
 
-# def get_cnn_block(depth):
-#     return Sequential([Conv2D(depth, 3, 1),
-#                        BatchNormalization(),
-#                        ReLU()])
-#
-#
-# DEPTH = 64
-# cnn = Sequential([Reshape((28, 28, 1)),
-#                   get_cnn_block(DEPTH),
-#                   get_cnn_block(DEPTH * 2),
-#                   get_cnn_block(DEPTH * 4),
-#                   get_cnn_block(DEPTH * 8),
-#                   GlobalAveragePooling2D(),
-#                   Dense(64, activation='relu')])
 
 
 def create_base_network(input_shape):
@@ -100,8 +89,21 @@ print(train_X1.shape)
 input_shape = train_X1.shape[1:]
 siamese_model = create_siamese_model(input_shape)
 
+siamese_model.summary()
+
 # Compile the model
-siamese_model.compile(loss=contrastive_loss, optimizer=Adam(), metrics=['accuracy'])
+siamese_model.compile(loss=contrastive_loss, optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
 
 # Train the model
-a = siamese_model.fit([train_X1, train_X2], train_y, validation_data=([test_X1, test_X2], test_y), epochs=10, batch_size=32)
+siamese_model.fit([train_X1, train_X2], train_y, epochs=1, batch_size=32, use_multiprocessing=True, workers=7, verbose=1)
+# Evaluate the model on the test set
+evaluation = siamese_model.evaluate([test_X1, test_X2], test_y, verbose=0)
+print("Test Loss:", evaluation[0])
+print("Test Accuracy:", evaluation[1])
+
+
+prediction = siamese_model.predict([test_X1, test_X2], verbose=0)
+
+pass
+
+
