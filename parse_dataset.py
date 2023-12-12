@@ -65,6 +65,9 @@ class UserData(object):
         if add_difference_press_release:
             self._add_difference_press_release()
 
+    def __iter__(self):
+        return iter(self.phrases)
+
     def _add_difference_press_release(self):
         press_time_index = self.headers.index('PRESS_TIME')
         release_time_index = self.headers.index('RELEASE_TIME')
@@ -128,16 +131,6 @@ class UserData(object):
 
 # all lines are parsed and the dict is built
 
-from time import time
-
-start_time = time()
-data_parser = DataParser(keystrokes, base_path=PATH)
-data_parser.parse()
-print(data_parser.user_data)
-print('time spent', time() - start_time)
-print(d)
-
-
 class CoupleGenerator(object):
     def __init__(self, users_data):
         self.users_data = users_data
@@ -147,12 +140,24 @@ class CoupleGenerator(object):
 
     def generate_positive_couples(self):
         import itertools as it
-
-        pass
+        couples = [list(it.combinations(users_data, 2)) for users_data in self.users_data]
+        # for user_data in v:
+        #     l = list(it.combinations(user_data, 2))
+        #     pass
+        return couples
 
     def generate_negative_couples(self):
         pass
 
+from time import time
+
+start_time = time()
+data_parser = DataParser(keystrokes, base_path=PATH)
+data_parser.parse()
+cg = CoupleGenerator(data_parser.user_data)
+cg .generate_positive_couples()
+print('time spent', time() - start_time)
+print(d)
 
 '''# data to use in test and train
 test_data = {k: v[floor(len(v) / 2):] for k, v in zip(d.keys(), d.values())}
