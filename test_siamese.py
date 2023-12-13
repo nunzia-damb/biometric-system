@@ -23,7 +23,7 @@ def generate_pairs(num_pairs=1000, sequence_length=10):
     #     sequence_c = generate_sequence(sequence_length)
     #     pairs.append((sequence_a, sequence_c))
     #     labels.append(0.0)
-    from parse_dataset import train_X1, train_X2, train_y, test_X1, test_X2, test_y
+    from parse_dataset import p,n
     # return np.array(pairs), np.array(labels)
     return train_X1, train_X2, train_y, test_X1, test_X2, test_y
 

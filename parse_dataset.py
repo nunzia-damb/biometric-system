@@ -2,13 +2,17 @@ import itertools
 from math import floor
 
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
+# PATH = './data/'
+
 import os
 
 # fix random seed for reproducibility
 np.random.seed(42069)
 
+keystrokes = '''103_keystrokes.txt'''.split('\n')
 keystrokes = '''100390_keystrokes.txt
 100395_keystrokes.txt
 100396_keystrokes.txt
@@ -36,8 +40,9 @@ d = {}
 
 
 class DataParser(object):
-    def __init__(self, files, *, base_path='', types=None):
+    def __init__(self, files, *, base_path='', types=None, remove_headers=None):
         self.types = [int, int, str, str, int, int, int, str, int] if types is None else types
+        self.remove_headers = remove_headers if remove_headers is not None else []
         self.files = files
         self.base_path = base_path
         self.user_data = []
@@ -47,7 +52,23 @@ class DataParser(object):
             with open(self.base_path + file, 'r', encoding='utf-8') as fl:
                 headers = fl.readline().strip().split('\t')
                 lines = fl.readlines()
-                self.user_data.append(UserData(lines, headers=headers, headers_types=self.types))
+
+                ud = UserData(lines, headers=headers, headers_types=self.types)
+
+                # does nothing if there are no headers to remove
+                ud = self.remove_headers_columns(headers=headers, user_data=ud)
+                self.user_data.append(ud)
+
+    def remove_headers_columns(self, user_data, headers):
+        remove_headers_indexes = [headers.index(h) for h in self.remove_headers]
+        if len(remove_headers_indexes) == 0:
+            return user_data
+
+        for phrase in user_data.phrases:
+            for idx in range(len(phrase)):
+                phrase[idx] = [phrase[idx][i] for i in range(len(phrase[idx])) if i not in remove_headers_indexes]
+                pass
+        return user_data
 
 
 # Parsing dei dati
@@ -63,6 +84,7 @@ class UserData(object):
         self.id = int(lines[0].split('\t')[0])
         self._split_phrases(lines)
         if add_difference_press_release:
+            self.headers.append('DIFF_PRESS_RELEASE')
             self._add_difference_press_release()
 
     def __iter__(self):
@@ -81,14 +103,6 @@ class UserData(object):
                 line.append(line[release_time_index] - line[press_time_index])
 
     # calculate error rate = how many wrong letters (either in substitution or in addition/subtraction) have been typed
-    def calc_error_rate(self, user_in, user_out):
-        err_rate = 0
-        for i in range(min(len(user_in), len(user_out))):
-            if user_in[i] != user_out[i]:
-                err_rate += 1
-        err_rate += abs((len(user_in) - len(user_out)))
-        err_rate /= len(user_in)
-        return err_rate
 
     # method that split lines to get datas about sentences
     def _convert_type(self, line):
@@ -112,26 +126,6 @@ class UserData(object):
             data_line.append(l_split)
 
     # calculate average for press_time, release_time
-    def calc_avg(self):
-        avg = []
-        for i in range(0, len(self.phrases) - 1):
-            phrase = self.phrases[i]
-            avg_press_time = avg_release_time = 0
-            error_rate = self.phrases[i][-1]
-            for indx in range(0, len(phrase) - 1):
-                press, release = phrase[indx]
-                avg_press_time += press
-                avg_release_time += release
-            avg.append([avg_press_time / len(phrase), avg_release_time / len(phrase), error_rate])
-        return avg
-
-    def calc_avg_numpy(self):
-        import numpy as np
-        means = []
-        for phrase in self.phrases:
-            a = np.array(phrase[:-1])
-            means.append(list(np.mean(a, axis=0)))
-        return means
 
 
 # all lines are parsed and the dict is built
@@ -165,15 +159,22 @@ class CoupleGenerator(object):
         #            self.users_data if user_data1 != user_data2]
         return couples
 
+
 from time import time
 
 start_time = time()
-data_parser = DataParser(keystrokes, base_path=PATH)
+data_parser = DataParser(keystrokes, base_path=PATH, remove_headers=['TEST_SECTION_ID', 'SENTENCE',
+                                                                     'USER_INPUT', 'KEYSTROKE_ID', 'LETTER'])
 data_parser.parse()
+
 cg = CoupleGenerator(data_parser.user_data)
 p = cg.generate_positive_couples()
 n = cg.generate_negative_couples()
+
 print('time spent', time() - start_time)
+
+X_train, X_test, y_train, y_test = train_test_split(None, None, test_size=1 / 3, random_state=1127)
+
 print(d)
 
 '''# data to use in test and train
