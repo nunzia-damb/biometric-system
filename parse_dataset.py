@@ -92,5 +92,9 @@ f = open(os.getcwd() + "/test_texts.pk1", 'wb')
 pickle.dump(test_data, f)
 f.close()
 
+f = open(os.getcwd() + "/data_by_part.json", 'wb')
+pickle.dump(data_by_part, f)
+f.close()
+
 # train model
 train_keystrokes_rec(text_X1, text_X2, text_y)

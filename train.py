@@ -1,9 +1,10 @@
 from keras.layers import Input, Dense, InputLayer, Conv2D, MaxPooling2D, UpSampling2D, InputLayer, Concatenate, Flatten, Reshape, Lambda, Embedding, dot
 from keras.models import Model, load_model, Sequential
-import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt,pickle
 import keras.backend as K
 from sklearn.model_selection import train_test_split
-import os, sys
+import os, sys, numpy as np
 import tensorflow as tf
 from keras.utils.vis_utils import plot_model
 
@@ -44,9 +45,10 @@ def train_keystrokes_rec(X1,X2,y):
     plot_model(siamese_model, to_file=os.getcwd()+'/siamese_model_mnist.png', show_shapes=1, show_layer_names=1)
 
     # Fit model
-    siamese_model.fit([X1, X2], y, epochs=100, batch_size=5, shuffle=True, verbose=True)
+    siamese_model.fit([X1, X2], y, epochs=10, batch_size=5, shuffle=True, verbose=True)
 
-    model.save(os.getcwd()+"/text_encoder.h5")
-    siamese_model.save(os.getcwd()+"/text_siamese_model.h5")
+    model.save(os.getcwd()+"/text_encoder.h5","wb")
+    siamese_model.save(os.getcwd()+"/text_siamese_model.h5","wb")
+
 
     return model, siamese_model
