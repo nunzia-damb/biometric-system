@@ -68,6 +68,11 @@ class UserData(object):
     def __iter__(self):
         return iter(self.phrases)
 
+    def __eq__(self, other):
+        if not isinstance(other, UserData):
+            return False
+        return other.id == self.id
+
     def _add_difference_press_release(self):
         press_time_index = self.headers.index('PRESS_TIME')
         release_time_index = self.headers.index('RELEASE_TIME')
@@ -89,7 +94,7 @@ class UserData(object):
     def _convert_type(self, line):
         for index in range(len(self.headers_types)):
             if type(line[index]) is not self.headers_types[index]:
-                line[index] = self.headers_types[index](line[index])
+                line[index] = self.headers_types[index](line[index])  # magic
         return line
 
     def _split_phrases(self, lines):
@@ -140,14 +145,25 @@ class CoupleGenerator(object):
 
     def generate_positive_couples(self):
         import itertools as it
-        couples = [list(it.combinations(users_data, 2)) for users_data in self.users_data]
-        # for user_data in v:
-        #     l = list(it.combinations(user_data, 2))
-        #     pass
+        couples = []
+        for users_data in self.users_data:
+            pos_comb = list(it.combinations(users_data, 2))
+            couples.extend(pos_comb)
+        # couples = [list(it.combinations(users_data, 2)) for users_data in self.users_data]
         return couples
 
     def generate_negative_couples(self):
-        pass
+        import itertools as it
+        couples = []
+        for user_data1 in self.users_data:
+            for user_data2 in self.users_data:
+                if user_data1 == user_data2:
+                    continue
+                neg_comb = list(it.product(user_data1, user_data2))
+                couples.extend(neg_comb)
+        # couples = [list(it.product(user_data1, user_data2)) for user_data1 in self.users_data for user_data2 in
+        #            self.users_data if user_data1 != user_data2]
+        return couples
 
 from time import time
 
@@ -155,7 +171,8 @@ start_time = time()
 data_parser = DataParser(keystrokes, base_path=PATH)
 data_parser.parse()
 cg = CoupleGenerator(data_parser.user_data)
-cg .generate_positive_couples()
+p = cg.generate_positive_couples()
+n = cg.generate_negative_couples()
 print('time spent', time() - start_time)
 print(d)
 
