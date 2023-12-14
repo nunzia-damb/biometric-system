@@ -13,7 +13,7 @@ import os
 np.random.seed(42069)
 
 keystrokes = '''103_keystrokes.txt'''.split('\n')
-keystrokes = '''100390_keystrokes.txt
+keystrokes = '''103_keystrokes.txt
 100395_keystrokes.txt
 100396_keystrokes.txt
 100397_keystrokes.txt
@@ -40,9 +40,10 @@ d = {}
 
 
 class DataParser(object):
-    def __init__(self, files, *, base_path='', types=None, remove_headers=None):
+    def __init__(self, files, *, base_path='', types=None, remove_headers=None, header_injectors=None):
         self.types = [int, int, str, str, int, int, int, str, int] if types is None else types
         self.remove_headers = remove_headers if remove_headers is not None else []
+        self.header_injectors = header_injectors if header_injectors is not None else []
         self.files = files
         self.base_path = base_path
         self.user_data = []
@@ -53,14 +54,17 @@ class DataParser(object):
                 headers = fl.readline().strip().split('\t')
                 lines = fl.readlines()
 
-                ud = UserData(lines, headers=headers, headers_types=self.types)
+            ud = UserData(lines, headers=headers, headers_types=self.types)
 
-                # does nothing if there are no headers to remove
-                ud = self.remove_headers_columns(headers=headers, user_data=ud)
-                self.user_data.append(ud)
+            # does nothing if there are no headers to remove
+            ud = self.remove_headers_columns(headers=headers, user_data=ud)
+            for add_header in self.header_injectors:
+                ud = add_header.inject(ud)
+            self.user_data.append(ud)
 
     def remove_headers_columns(self, user_data, headers):
         remove_headers_indexes = [headers.index(h) for h in self.remove_headers]
+        user_data.headers = [h for h in user_data.headers if h not in self.remove_headers]
         if len(remove_headers_indexes) == 0:
             return user_data
 
@@ -71,21 +75,17 @@ class DataParser(object):
         return user_data
 
 
-# Parsing dei dati
 class UserData(object):
-    def __init__(self, lines, *, headers=None, headers_types=None, add_difference_press_release=True) -> None:
+    def __init__(self, lines, *, headers=None, headers_types=None) -> None:
         # list of phrases
         self.headers = [] if headers is None else headers
         self.headers_types = [] if headers_types is None else headers_types
         self.phrases = []
-        self.train_averages = []
-        self.test_averages = []
+        # self.train_averages = []
+        # self.test_averages = []
 
         self.id = int(lines[0].split('\t')[0])
         self._split_phrases(lines)
-        if add_difference_press_release:
-            self.headers.append('DIFF_PRESS_RELEASE')
-            self._add_difference_press_release()
 
     def __iter__(self):
         return iter(self.phrases)
@@ -95,16 +95,6 @@ class UserData(object):
             return False
         return other.id == self.id
 
-    def _add_difference_press_release(self):
-        press_time_index = self.headers.index('PRESS_TIME')
-        release_time_index = self.headers.index('RELEASE_TIME')
-        for phrase in self.phrases:
-            for line in phrase:
-                line.append(line[release_time_index] - line[press_time_index])
-
-    # calculate error rate = how many wrong letters (either in substitution or in addition/subtraction) have been typed
-
-    # method that split lines to get datas about sentences
     def _convert_type(self, line):
         for index in range(len(self.headers_types)):
             if type(line[index]) is not self.headers_types[index]:
@@ -128,11 +118,49 @@ class UserData(object):
     # calculate average for press_time, release_time
 
 
-# all lines are parsed and the dict is built
+class HeaderInjector(object):
+    def __init__(self, header, func):
+        self.headers = header
+        self.func = func
+
+    def inject(self, user_data):
+        user_data.headers.append(self.headers)
+        self.func(user_data)
+        return user_data
+
+
+def add_pp_latency(user_data: UserData):
+    press_time_index = user_data.headers.index('PRESS_TIME')
+    for phrase in user_data.phrases:
+        phrase[0].append(0)
+        for line_index in range(1, len(phrase)):
+            pp_lat = phrase[line_index][press_time_index] - phrase[line_index - 1][press_time_index]
+            phrase[line_index].append(pp_lat)
+
+
+def add_rp_latency(user_data: UserData):
+    press_time_index = user_data.headers.index('PRESS_TIME')
+    release_time_index = user_data.headers.index('RELEASE_TIME')
+    for phrase in user_data.phrases:
+        phrase[0].append(0)
+        for line_index in range(1, len(phrase)):
+            rp_lat = phrase[line_index][press_time_index] - phrase[line_index - 1][release_time_index]
+            phrase[line_index].append(rp_lat)
+
+
+def add_hold_time(user_data: UserData):
+    press_time_index = user_data.headers.index('PRESS_TIME')
+    release_time_index = user_data.headers.index('RELEASE_TIME')
+    for phrase in user_data.phrases:
+        for line in phrase:
+            line.append(line[release_time_index] - line[press_time_index])
+
 
 class CoupleGenerator(object):
     def __init__(self, users_data):
         self.users_data = users_data
+        self.positive_couples = []
+        self.negative_couples = []
 
     def split_dataset(self):
         pass
@@ -144,6 +172,7 @@ class CoupleGenerator(object):
             pos_comb = list(it.combinations(users_data, 2))
             couples.extend(pos_comb)
         # couples = [list(it.combinations(users_data, 2)) for users_data in self.users_data]
+        self.positive_couples = couples
         return couples
 
     def generate_negative_couples(self):
@@ -157,21 +186,30 @@ class CoupleGenerator(object):
                 couples.extend(neg_comb)
         # couples = [list(it.product(user_data1, user_data2)) for user_data1 in self.users_data for user_data2 in
         #            self.users_data if user_data1 != user_data2]
+        self.negative_couples = couples
         return couples
 
 
-from time import time
+from time import time as t
 
-start_time = time()
-data_parser = DataParser(keystrokes, base_path=PATH, remove_headers=['TEST_SECTION_ID', 'SENTENCE',
-                                                                     'USER_INPUT', 'KEYSTROKE_ID', 'LETTER'])
+start_time = t()
+data_parser = DataParser(keystrokes, base_path=PATH,
+                         remove_headers=['TEST_SECTION_ID', 'SENTENCE',
+                                         'USER_INPUT', 'KEYSTROKE_ID',
+                                         'LETTER', 'PARTICIPANT_ID'],
+                         header_injectors=[
+                                             HeaderInjector('HOLD_LATENCY', add_hold_time),
+                                             HeaderInjector('PP_LATENCY', add_pp_latency),
+                                             HeaderInjector('RP_LATENCY', add_rp_latency),
+                                           ]
+                         )
 data_parser.parse()
 
 cg = CoupleGenerator(data_parser.user_data)
 p = cg.generate_positive_couples()
 n = cg.generate_negative_couples()
 
-print('time spent', time() - start_time)
+print('time spent', t() - start_time)
 
 X_train, X_test, y_train, y_test = train_test_split(None, None, test_size=1 / 3, random_state=1127)
 
