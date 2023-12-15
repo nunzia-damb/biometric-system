@@ -5,8 +5,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-#PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
-PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
+PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
+# PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
 
 import os
 
@@ -44,7 +44,7 @@ d = {}
 
 class DataParser(object):
     def __init__(self, files, *, base_path='', types=None, remove_headers=None, header_injectors=None,
-                 padding=None):
+                 normalize_size=None):
         """
         :param files: list of files to parse
         :param base_path: base path for files (final path = base_path + files)
@@ -52,7 +52,7 @@ class DataParser(object):
         :param remove_headers: list of headers names to remove from the dataset
         :param header_injectors: list of HeaderInjector objects to inject into the dataset headers and function to
                 extract their values
-        :param padding: object PaddingUserData used to add padding to phrases
+        :param normalize_size: object SizeNormalization apply padding and truncations
         """
         self.types = [int, int, str, str, int, int, int, str, int] if types is None else types
         self.remove_headers = remove_headers if remove_headers is not None else []
@@ -62,7 +62,7 @@ class DataParser(object):
         self.user_data = []
         # self.padding_value = padding_value
         # self.max_height = max_height
-        self.padding = padding
+        self.normalize_size = normalize_size
 
     def parse(self):
         for file in self.files:
@@ -77,8 +77,8 @@ class DataParser(object):
             for add_header in self.header_injectors:
                 ud = add_header.inject(ud)
 
-            if self.padding is not None:
-                ud = self.padding(ud)
+            if self.normalize_size is not None:
+                ud = self.normalize_size(ud)
             self.user_data.append(ud)
 
         return self.user_data
@@ -152,15 +152,25 @@ class NormalizeDatasetSize(object):
 
 
 class TruncateUserData(NormalizeDatasetSize):
-    def __init__(self, min_height, padding_value):
-        super().__init__(min_height)
+    def __init__(self, max_height, padding_value):
+        super().__init__(max_height)
         self.padding_value = padding_value
 
     def normalize_size(self, userdata):
         return self.apply_truncate_user_data(userdata)
 
     def apply_truncate_user_data(self, userdata):
-        # TODO
+        if self.height < 0:
+            return userdata
+        for phrase_data in userdata:
+            if len(phrase_data) <= self.height:
+                # if padding isn't needed
+                continue
+
+            trunc_diff = len(phrase_data) - self.height
+            for _ in range(trunc_diff):
+                phrase_data.pop()
+
         return userdata
 
 
@@ -173,13 +183,12 @@ class PaddingUserData(NormalizeDatasetSize):
         return self.apply_padding_user_data(userdata)
 
     def apply_padding_user_data(self, userdata):
+        if self.height < 0:
+            return userdata
         for phrase_data in userdata:
-            if self.height < 0:
-                continue
             if len(phrase_data) >= self.height:
                 # if padding isn't needed
                 continue
-
             pad_diff = self.height - len(phrase_data)
             phrase_data.extend([[]] * pad_diff)
         return userdata
@@ -283,9 +292,9 @@ data_parser = DataParser(keystrokes, base_path=PATH,
                              HeaderInjector('PP_LATENCY', add_pp_latency),
                              HeaderInjector('RP_LATENCY', add_rp_latency),
                          ],
-                         padding=SizeNormalization(
+                         normalize_size=SizeNormalization(
                                 PaddingUserData(min_height=100, padding_value=-1),
-                                TruncateUserData(-1,-1)),
+                                TruncateUserData(max_height=70, padding_value=-1)),
                          )
 data_parser.parse()
 
