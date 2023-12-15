@@ -3,6 +3,7 @@ from math import floor
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 
 PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
 # PATH = './data/'
@@ -210,6 +211,29 @@ p = cg.generate_positive_couples()
 n = cg.generate_negative_couples()
 
 print('time spent', t() - start_time)
+
+#every phrase in *positive* couples has length 45
+for phrase in p:
+    for key in phrase:
+        if len(key) > 45:
+            key[:] = key[:45]
+        elif len(key) < 45:
+            for i in range(len(key), 45):
+                key.append([0,0,0,0])
+
+y = [1 for i in range(len(p))]
+y += ([0 for i in range(len(n))])
+#print(len(p)+len(n), len(y))
+
+#data normalization - eventually try the standardization
+norm_arr = []
+for phrase in p:
+    for key in phrase:
+        norm = MinMaxScaler().fit(key)
+        norm_key = norm.transform(key)
+    norm_arr.append(norm_key)
+print(len(norm_arr[0]), len(norm_arr))
+
 
 X_train, X_test, y_train, y_test = train_test_split(None, None, test_size=1 / 3, random_state=1127)
 
