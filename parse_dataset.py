@@ -2,11 +2,13 @@ import itertools
 from math import floor
 
 import numpy as np
+from keras import layers
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+import keras.layers
 
-PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
-# PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
+#PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
+PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
 
 import os
 
@@ -190,7 +192,7 @@ class PaddingUserData(NormalizeDatasetSize):
                 # if padding isn't needed
                 continue
             pad_diff = self.height - len(phrase_data)
-            phrase_data.extend([[]] * pad_diff)
+            phrase_data.extend([[0]*len(phrase_data[0])] * pad_diff)
         return userdata
 
 
@@ -303,7 +305,36 @@ p = cg.generate_positive_couples()
 n = cg.generate_negative_couples()
 
 print('time spent', t() - start_time)
-print(p[0])
+
+
+y = [1 for i in range(len(p))]
+y += ([0 for i in range(len(n))])
+#print(len(p)+len(n), len(y))
+
+# data normalization - eventually try the standardization
+def mean_zero(arr):
+    norm_arr = []
+    for phrase in arr:
+        for key in phrase:
+            norm = MinMaxScaler().fit_transform(key)
+            #norm_key = norm.transform(key)
+        norm_arr.append(norm)
+    return norm_arr
+
+
+norm_pos = mean_zero(p)
+norm_neg = mean_zero(n)
+pos = np.array(norm_pos)
+neg = np.array(norm_neg)
+embedding = layers.Embedding(input_dim=70*6, output_dim=32, mask_zero=True)
+masked_output_pos = embedding(pos)
+masked_output_neg = embedding(neg)
+print(neg[-1], masked_output_neg._keras_mask)
+
+
+#X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(None, None, test_size=1 / 3, random_state=1127)
+#X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(None, None, test_size=1 / 3, random_state=1127)
+
 '''
 # every phrase in *positive* couples has length 45
 for phrase in p:
@@ -315,24 +346,6 @@ for phrase in p:
                 key.append([0, 0, 0, 0])
 '''
 
-'''
-# data normalization - eventually try the standardization
-norm_arr = []
-for phrase in p:
-    for key in phrase:
-        norm = MinMaxScaler().fit(key)
-        norm_key = norm.transform(key)
-    norm_arr.append(norm_key)
-print(len(norm_arr[0]), len(norm_arr))
-'''
-
-y = [1 for i in range(len(p))]
-y += ([0 for i in range(len(n))])
-# print(len(p)+len(n), len(y))
-
-#neg = np.array(n)
-#X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(None, None, test_size=1 / 3, random_state=1127)
-#X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(None, None, test_size=1 / 3, random_state=1127)
 
 
 '''# data to use in test and train
