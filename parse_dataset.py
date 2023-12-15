@@ -14,8 +14,7 @@ import os
 np.random.seed(42069)
 
 keystrokes = '''103_keystrokes.txt'''.split('\n')
-keystrokes = '''103_keystrokes.txt
-100395_keystrokes.txt
+keystrokes = '''100395_keystrokes.txt
 100396_keystrokes.txt
 100397_keystrokes.txt
 100410_keystrokes.txt
@@ -41,13 +40,26 @@ d = {}
 
 
 class DataParser(object):
-    def __init__(self, files, *, base_path='', types=None, remove_headers=None, header_injectors=None):
+    def __init__(self, files, *, base_path='', types=None, remove_headers=None, header_injectors=None,
+                 padding=None):
+        """
+        :param files: list of files to parse
+        :param base_path: base path for files (final path = base_path + files)
+        :param types: list of types to convert the respective index value in the files of the dataset
+        :param remove_headers: list of headers names to remove from the dataset
+        :param header_injectors: list of HeaderInjector objects to inject into the dataset headers and function to
+                extract their values
+        :param padding: object PaddingUserData used to add padding to phrases
+        """
         self.types = [int, int, str, str, int, int, int, str, int] if types is None else types
         self.remove_headers = remove_headers if remove_headers is not None else []
         self.header_injectors = header_injectors if header_injectors is not None else []
         self.files = files
         self.base_path = base_path
         self.user_data = []
+        # self.padding_value = padding_value
+        # self.max_height = max_height
+        self.padding = padding
 
     def parse(self):
         for file in self.files:
@@ -61,7 +73,12 @@ class DataParser(object):
             ud = self.remove_headers_columns(headers=headers, user_data=ud)
             for add_header in self.header_injectors:
                 ud = add_header.inject(ud)
+
+            if self.padding is not None:
+                ud = self.padding(ud)
             self.user_data.append(ud)
+
+        return self.user_data
 
     def remove_headers_columns(self, user_data, headers):
         remove_headers_indexes = [headers.index(h) for h in self.remove_headers]
@@ -81,12 +98,8 @@ class UserData(object):
         # list of phrases
         self.headers = [] if headers is None else headers
         self.headers_types = [] if headers_types is None else headers_types
-        self.phrases = []
-        # self.train_averages = []
-        # self.test_averages = []
-
         self.id = int(lines[0].split('\t')[0])
-        self._split_phrases(lines)
+        self.phrases = self._split_phrases(lines)
 
     def __iter__(self):
         return iter(self.phrases)
@@ -104,19 +117,83 @@ class UserData(object):
 
     def _split_phrases(self, lines):
         sentence = -1
-        data_line = []
-        for line in lines:
+        data_line, phrases = [], []
+        for index in range(len(lines)):
+            line = lines[index]
             l_split = line.split('\t')
             if int(l_split[1]) != sentence and sentence != -1:
-                self.phrases.append(data_line)
+                phrases.append(data_line)
                 data_line = []
-
             sentence = int(l_split[1])
             l_split[-1] = l_split[-1].rstrip()  # remove \n
             l_split = self._convert_type(l_split)
             data_line.append(l_split)
+        phrases.append(data_line)
+        return phrases
 
-    # calculate average for press_time, release_time
+
+class NormalizeDatasetSize(object):
+    def __init__(self, height):
+        self.height = height
+
+    def __call__(self, userdata):
+        return self.normalize_size(userdata)
+
+    def normalize_size(self, userdata):
+        """abstract method; template method pattern"""
+        return userdata
+
+    # def can_apply(self, phrase_userdata):
+    #     """abstract method"""
+    #     return
+
+
+class TruncateUserData(NormalizeDatasetSize):
+    def __init__(self, min_height, padding_value):
+        super().__init__(min_height)
+        self.padding_value = padding_value
+
+    def normalize_size(self, userdata):
+        return self.apply_truncate_user_data(userdata)
+
+    def apply_truncate_user_data(self, userdata):
+        # TODO
+        return userdata
+
+
+class PaddingUserData(NormalizeDatasetSize):
+    def __init__(self, min_height, padding_value):
+        super().__init__(min_height)
+        self.padding_value = padding_value
+
+    def normalize_size(self, userdata):
+        return self.apply_padding_user_data(userdata)
+
+    def apply_padding_user_data(self, userdata):
+        for phrase_data in userdata:
+            if self.height < 0:
+                continue
+            if len(phrase_data) >= self.height:
+                # if padding isn't needed
+                continue
+
+            pad_diff = self.height - len(phrase_data)
+            phrase_data.extend([[]] * pad_diff)
+        return userdata
+
+
+class SizeNormalization(object):
+    def __init__(self, padding: PaddingUserData, truncate: TruncateUserData):
+        self.padding = padding
+        self.truncate = truncate
+
+    def __call__(self, userdata):
+        return self.normalize_size(userdata)
+
+    def normalize_size(self, userdata):
+        userdata = self.padding(userdata)
+        userdata = self.truncate(userdata)
+        return userdata
 
 
 class HeaderInjector(object):
@@ -199,10 +276,13 @@ data_parser = DataParser(keystrokes, base_path=PATH,
                                          'USER_INPUT', 'KEYSTROKE_ID',
                                          'LETTER', 'PARTICIPANT_ID'],
                          header_injectors=[
-                                             HeaderInjector('HOLD_LATENCY', add_hold_time),
-                                             HeaderInjector('PP_LATENCY', add_pp_latency),
-                                             HeaderInjector('RP_LATENCY', add_rp_latency),
-                                           ]
+                             HeaderInjector('HOLD_LATENCY', add_hold_time),
+                             HeaderInjector('PP_LATENCY', add_pp_latency),
+                             HeaderInjector('RP_LATENCY', add_rp_latency),
+                         ],
+                         padding=SizeNormalization(
+                                PaddingUserData(min_height=100, padding_value=-1),
+                                TruncateUserData(-1,-1)),
                          )
 data_parser.parse()
 
@@ -212,20 +292,20 @@ n = cg.generate_negative_couples()
 
 print('time spent', t() - start_time)
 
-#every phrase in *positive* couples has length 45
+# every phrase in *positive* couples has length 45
 for phrase in p:
     for key in phrase:
         if len(key) > 45:
             key[:] = key[:45]
         elif len(key) < 45:
             for i in range(len(key), 45):
-                key.append([0,0,0,0])
+                key.append([0, 0, 0, 0])
 
 y = [1 for i in range(len(p))]
 y += ([0 for i in range(len(n))])
-#print(len(p)+len(n), len(y))
+# print(len(p)+len(n), len(y))
 
-#data normalization - eventually try the standardization
+# data normalization - eventually try the standardization
 norm_arr = []
 for phrase in p:
     for key in phrase:
@@ -234,8 +314,9 @@ for phrase in p:
     norm_arr.append(norm_key)
 print(len(norm_arr[0]), len(norm_arr))
 
-
-X_train, X_test, y_train, y_test = train_test_split(None, None, test_size=1 / 3, random_state=1127)
+neg = np.array(n)
+X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(None, None, test_size=1 / 3, random_state=1127)
+X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(None, None, test_size=1 / 3, random_state=1127)
 
 print(d)
 
