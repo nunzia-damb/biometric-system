@@ -299,7 +299,7 @@ data_parser = DataParser(keystrokes, base_path=PATH,
                                 TruncateUserData(max_height=70, padding_value=-1)),
                          )
 data_parser.parse()
-
+#it would be best to normalize before doing couples
 cg = CoupleGenerator(data_parser.user_data)
 p = cg.generate_positive_couples()
 n = cg.generate_negative_couples()
@@ -311,26 +311,28 @@ y = [1 for i in range(len(p))]
 y += ([0 for i in range(len(n))])
 #print(len(p)+len(n), len(y))
 
-# data normalization - eventually try the standardization
+# data normalization
 def mean_zero(arr):
-    norm_arr = []
-    for phrase in arr:
-        for key in phrase:
-            norm = MinMaxScaler().fit_transform(key)
-            #norm_key = norm.transform(key)
-        norm_arr.append(norm)
-    return norm_arr
+    norm_final = []
+    for couple in arr:
+        norm_arr = []
+        for phrase in couple:
+            norm = MinMaxScaler().fit_transform(phrase)
+            norm_arr.append(norm)
+        norm_final.append(norm_arr)
+    return norm_final
 
 
 norm_pos = mean_zero(p)
 norm_neg = mean_zero(n)
+#print(norm_pos, len(norm_pos))
 pos = np.array(norm_pos)
+#print(pos.shape)
 neg = np.array(norm_neg)
 embedding = layers.Embedding(input_dim=70*6, output_dim=32, mask_zero=True)
 masked_output_pos = embedding(pos)
 masked_output_neg = embedding(neg)
-print(neg[-1], masked_output_neg._keras_mask)
-
+#print(neg[-1], masked_output_neg._keras_mask)
 
 #X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(None, None, test_size=1 / 3, random_state=1127)
 #X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(None, None, test_size=1 / 3, random_state=1127)
