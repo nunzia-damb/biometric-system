@@ -6,41 +6,41 @@ from keras import layers
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 import keras.layers
+import tensorflow as tf
 
-#PATH = '/media/tommy/Volume/Universita/Magistrale/BiometricSystems/project/Keystrokes/KeyboardKeystrokes/Keystrokes/files/'
-PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
+PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
+# PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
 
 import os
 
 # fix random seed for reproducibility
 np.random.seed(42069)
 
-a='''103_keystrokes.txt
+a = '''103_keystrokes.txt
 105_keystrokes.txt'''.split('\n')
 
-b = '''100395_keystrokes.txt
-100396_keystrokes.txt
-100397_keystrokes.txt
-100410_keystrokes.txt
-100416_keystrokes.txt
-100417_keystrokes.txt
-100419_keystrokes.txt
-100420_keystrokes.txt
-100421_keystrokes.txt
-100422_keystrokes.txt
-100423_keystrokes.txt
-100425_keystrokes.txt
-100426_keystrokes.txt
-100431_keystrokes.txt
-100432_keystrokes.txt
-100434_keystrokes.txt
-100438_keystrokes.txt
-100439_keystrokes.txt
-100444_keystrokes.txt
-100445_keystrokes.txt
-100446_keystrokes.txt
-100447_keystrokes.txt'''.split('\n')
-keystrokes = a
+b = '''102_keystrokes.txt
+103_keystrokes.txt
+105_keystrokes.txt
+106_keystrokes.txt
+109_keystrokes.txt
+112_keystrokes.txt
+113_keystrokes.txt
+114_keystrokes.txt
+1002_keystrokes.txt
+1005_keystrokes.txt
+1010_keystrokes.txt
+1011_keystrokes.txt
+1015_keystrokes.txt
+1020_keystrokes.txt
+1024_keystrokes.txt
+1027_keystrokes.txt
+1030_keystrokes.txt
+1047_keystrokes.txt
+1048_keystrokes.txt
+1053_keystrokes.txt
+1054_keystrokes.txt'''.split('\n')
+keystrokes = b
 d = {}
 
 
@@ -66,6 +66,9 @@ class DataParser(object):
         # self.max_height = max_height
         self.normalize_size = normalize_size
 
+    # def get_dimension(self):
+    #     return len(self.headers)
+
     def parse(self):
         for file in self.files:
             with open(self.base_path + file, 'r', encoding='utf-8') as fl:
@@ -75,10 +78,10 @@ class DataParser(object):
             ud = UserData(lines, headers=headers, headers_types=self.types)
 
             # does nothing if there are no headers to remove
-            ud = self.remove_headers_columns(headers=headers, user_data=ud)
             for add_header in self.header_injectors:
                 ud = add_header.inject(ud)
 
+            ud = self.remove_headers_columns(headers=headers, user_data=ud)
             if self.normalize_size is not None:
                 ud = self.normalize_size(ud)
             self.user_data.append(ud)
@@ -142,7 +145,9 @@ class NormalizeDatasetSize(object):
         self.height = height
 
     def __call__(self, userdata):
-        return self.normalize_size(userdata)
+        ud = self.normalize_size(userdata)
+
+        return ud
 
     def normalize_size(self, userdata):
         """abstract method; template method pattern"""
@@ -182,22 +187,24 @@ class PaddingUserData(NormalizeDatasetSize):
         self.padding_value = padding_value
 
     def normalize_size(self, userdata):
-        return self.apply_padding_user_data(userdata)
+        ud = self.apply_padding_user_data(userdata)
+        return ud
 
     def apply_padding_user_data(self, userdata):
         if self.height < 0:
             return userdata
-        for phrase_data in userdata:
+        for i in range(len(userdata.phrases)):
+            phrase_data = userdata.phrases[i]
             if len(phrase_data) >= self.height:
                 # if padding isn't needed
                 continue
             pad_diff = self.height - len(phrase_data)
-            phrase_data.extend([[0]*len(phrase_data[0])] * pad_diff)
+            phrase_data.extend([[]] * pad_diff)
         return userdata
 
 
 class SizeNormalization(object):
-    def __init__(self, padding: PaddingUserData, truncate: TruncateUserData):
+    def __init__(self, *, padding, truncate):
         self.padding = padding
         self.truncate = truncate
 
@@ -205,8 +212,11 @@ class SizeNormalization(object):
         return self.normalize_size(userdata)
 
     def normalize_size(self, userdata):
-        userdata = self.padding(userdata)
         userdata = self.truncate(userdata)
+        userdata = self.padding(userdata)
+        for i in range(len(userdata.phrases)):
+            padded_inputs = tf.keras.utils.pad_sequences(userdata.phrases[i], padding="post")
+            userdata.phrases[i] = padded_inputs
         return userdata
 
 
@@ -285,57 +295,66 @@ class CoupleGenerator(object):
 from time import time as t
 
 start_time = t()
+height_normalization = 70
 data_parser = DataParser(keystrokes, base_path=PATH,
                          remove_headers=['TEST_SECTION_ID', 'SENTENCE',
                                          'USER_INPUT', 'KEYSTROKE_ID',
-                                         'LETTER', 'PARTICIPANT_ID'],
+                                         'LETTER', 'PARTICIPANT_ID', 'PRESS_TIME', 'RELEASE_TIME'],
                          header_injectors=[
                              HeaderInjector('HOLD_LATENCY', add_hold_time),
                              HeaderInjector('PP_LATENCY', add_pp_latency),
                              HeaderInjector('RP_LATENCY', add_rp_latency),
                          ],
                          normalize_size=SizeNormalization(
-                                PaddingUserData(min_height=100, padding_value=-1),
-                                TruncateUserData(max_height=70, padding_value=-1)),
+                             truncate=TruncateUserData(max_height=height_normalization, padding_value=-1),
+                             padding=PaddingUserData(min_height=height_normalization, padding_value=-1),
+                         ),
                          )
 data_parser.parse()
-#it would be best to normalize before doing couples
+# it would be best to normalize before doing couples
+
+
+embedding = layers.Embedding(input_dim=600,
+                             output_dim=32, mask_zero=True)
+
+# data_parser.user_data = embedding(data_parser.user_data[0].phrases[0])
+m = tf.keras.layers.Masking(mask_value=0, input_shape=(4, 70))
+n = m(data_parser.user_data[0].phrases[0])
+print(n._keras_mask)
+
 cg = CoupleGenerator(data_parser.user_data)
 p = cg.generate_positive_couples()
 n = cg.generate_negative_couples()
 
 print('time spent', t() - start_time)
 
+y = [1] * len(p) + len(n) * [0]
 
-y = [1 for i in range(len(p))]
-y += ([0 for i in range(len(n))])
-#print(len(p)+len(n), len(y))
+# print(len(p)+len(n), len(y))
 
 # data normalization
-def mean_zero(arr):
-    norm_final = []
-    for couple in arr:
-        norm_arr = []
-        for phrase in couple:
-            norm = MinMaxScaler().fit_transform(phrase)
-            norm_arr.append(norm)
-        norm_final.append(norm_arr)
-    return norm_final
 
 
-norm_pos = mean_zero(p)
-norm_neg = mean_zero(n)
-#print(norm_pos, len(norm_pos))
-pos = np.array(norm_pos)
-#print(pos.shape)
-neg = np.array(norm_neg)
-embedding = layers.Embedding(input_dim=70*6, output_dim=32, mask_zero=True)
-masked_output_pos = embedding(pos)
-masked_output_neg = embedding(neg)
-#print(neg[-1], masked_output_neg._keras_mask)
+# print(padded_inputs)
 
-#X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(None, None, test_size=1 / 3, random_state=1127)
-#X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(None, None, test_size=1 / 3, random_state=1127)
+
+# masked_output_pos = embedding(pos)
+# masked_output_neg = embedding(neg)
+
+pass
+# norm_pos = mean_zero(p)
+# norm_neg = mean_zero(n)
+# print(norm_pos, len(norm_pos))
+# pos = np.array(norm_pos)
+# # print(pos.shape)
+# neg = np.array(norm_neg)
+
+# masked_output_pos = embedding(pos)
+# masked_output_neg = embedding(neg)
+# print(neg[-1], masked_output_neg._keras_mask)
+pass
+# X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(None, None, test_size=1 / 3, random_state=1127)
+# X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(None, None, test_size=1 / 3, random_state=1127)
 
 '''
 # every phrase in *positive* couples has length 45
@@ -347,8 +366,6 @@ for phrase in p:
             for i in range(len(key), 45):
                 key.append([0, 0, 0, 0])
 '''
-
-
 
 '''# data to use in test and train
 test_data = {k: v[floor(len(v) / 2):] for k, v in zip(d.keys(), d.values())}
