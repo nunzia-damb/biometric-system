@@ -68,6 +68,8 @@ class DataParser(object):
 
     # def get_dimension(self):
     #     return len(self.headers)
+    def get_shape(self):
+        return self.normalize_size.padding.height, len(self.user_data[0].headers)
 
     def parse(self):
         for file in self.files:
@@ -313,23 +315,24 @@ data_parser = DataParser(keystrokes, base_path=PATH,
 data_parser.parse()
 # it would be best to normalize before doing couples
 
-
-embedding = layers.Embedding(input_dim=600,
-                             output_dim=32, mask_zero=True)
-
-# data_parser.user_data = embedding(data_parser.user_data[0].phrases[0])
-m = tf.keras.layers.Masking(mask_value=0, input_shape=(4, 70))
-n = m(data_parser.user_data[0].phrases[0])
-print(n._keras_mask)
-
 cg = CoupleGenerator(data_parser.user_data)
 p = cg.generate_positive_couples()
 n = cg.generate_negative_couples()
 
 print('time spent', t() - start_time)
+y_neg = np.zeros(len(n))
+y_pos = np.ones(len(p))
+X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(n, y_neg, test_size=1 / 3, random_state=1127)
+X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(p, y_pos, test_size=1 / 3, random_state=1127)
+del y_neg, y_pos, p, n, cg
+pass
 
-y = [1] * len(p) + len(n) * [0]
+X_train = X_train_neg + X_train_pos
+y_train = np.concatenate((y_train_neg, y_train_pos), axis=0)
 
+X_test = X_test_neg + X_test_pos
+y_test = np.concatenate((y_test_neg, y_test_pos), axis=0)
+shape = data_parser.get_shape()
 # print(len(p)+len(n), len(y))
 
 # data normalization

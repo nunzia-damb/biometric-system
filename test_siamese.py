@@ -10,22 +10,13 @@ from keras.src.layers import Lambda
 # Function to generate random sequences
 
 # Function to generate pairs of sequences and labels
-def generate_pairs(num_pairs=1000, sequence_length=10):
-    # pairs, labels = [], []
-    # for _ in range(num_pairs):
-    #     # Generate positive pair (sequences from the same class)
-    #     sequence_a = generate_sequence(sequence_length)
-    #     sequence_b = generate_sequence(sequence_length)
-    #     pairs.append((sequence_a, sequence_b))
-    #     labels.append(1.0)
-    #
-    #     # Generate negative pair (sequences from different classes)
-    #     sequence_c = generate_sequence(sequence_length)
-    #     pairs.append((sequence_a, sequence_c))
-    #     labels.append(0.0)
-    from parse_dataset import p,n
-    # return np.array(pairs), np.array(labels)
-    return train_X1, train_X2, train_y, test_X1, test_X2, test_y
+def generate_pairs():
+    """
+    Generate pairs of positive and negatives keystrokes split in train and test
+    :return: X_test, X_train, y_test, y_train where
+    """
+    from parse_dataset import X_test, X_train, y_test, y_train, shape
+    return X_test, X_train, y_test, y_train, shape
 
 
 def euclidean_distance(vects):
@@ -53,13 +44,18 @@ def create_siamese_model(input_shape):
 
     base_network = create_base_network(input_shape)
 
-    feature_vector_A = base_network(input_a)
-    feature_vector_B = base_network(input_b)
+    # data_parser.user_data = embedding(data_parser.user_data[0].phrases[0])
+    # mask = Masking(mask_value=0, input_shape=input_shape)
+    masked_a = Masking(mask_value=0, input_shape=input_shape)(input_a)
+    masked_b = Masking(mask_value=0, input_shape=input_shape)(input_b)
+
+    feature_vector_A = base_network(masked_a)
+    feature_vector_B = base_network(masked_b)
 
     # concat = Concatenate()([feature_vector_A, feature_vector_B])
     # dense = Dense(64, activation='relu')(concat)
 
-    distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([feature_vector_A, feature_vector_B])
+    distance = Lambda(euclidean_distance, output_shape=(8))([feature_vector_A, feature_vector_B])
 
     # sig = Dense(1, activation='sigmoid')(distance)
 
@@ -82,11 +78,11 @@ def create_base_network(input_shape):
 
 # Reshape the data
 
-train_X1, train_X2, train_y, test_X1, test_X2, test_y = generate_pairs()
+X_test, X_train, y_test, y_train, shape = generate_pairs()
 
 # Create siamese model
-print(train_X1.shape)
-input_shape = train_X1.shape[1:]
+print(shape)
+input_shape = shape
 siamese_model = create_siamese_model(input_shape)
 
 siamese_model.summary()
@@ -94,15 +90,19 @@ siamese_model.summary()
 # Compile the model
 siamese_model.compile(loss=contrastive_loss, optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
 
-# Train the model
-siamese_model.fit([train_X1, train_X2], train_y, epochs=1, batch_size=32, use_multiprocessing=True, workers=7, verbose=1)
+
+X_trainnn = np.array(X_train)
+a = X_trainnn[:, 0, :, :]
+b = X_trainnn[:, 1, :, :]
+# Train the mode,l
+siamese_model.fit([a, b], y_train, epochs=10, batch_size=8, use_multiprocessing=True, workers=7, verbose=1)
 # Evaluate the model on the test set
-evaluation = siamese_model.evaluate([test_X1, test_X2], test_y, verbose=0)
+evaluation = siamese_model.evaluate(X_test, y_test, verbose=0)
 print("Test Loss:", evaluation[0])
 print("Test Accuracy:", evaluation[1])
 
 
-prediction = siamese_model.predict([test_X1, test_X2], verbose=0)
+prediction = siamese_model.predict(X_test, verbose=0)
 
 pass
 
