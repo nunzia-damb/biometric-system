@@ -4,7 +4,7 @@ from keras.layers import *
 from keras.optimizers import Adam
 from keras.losses import binary_crossentropy
 from keras import backend as K
-from keras.src.layers import Lambda
+from keras.layers import Lambda
 
 
 # Function to generate random sequences
@@ -60,7 +60,6 @@ def create_siamese_model(input_shape):
     # sig = Dense(1, activation='sigmoid')(distance)
 
     model = Model(inputs=[input_a, input_b], outputs=distance)
-
     return model
 
 
@@ -68,11 +67,10 @@ def create_siamese_model(input_shape):
 
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
-    x = Dense(128, activation='relu')(input)
-    x = Dense(64, activation='relu')(x)
-    x = Dense(32, activation='relu')(x)
+    x = Dense(32, activation='relu')(input)
     x = Dense(16, activation='relu')(x)
     x = Dense(8, activation='relu')(x)
+    x = Dense(1, activation='sigmoid')(x)
     return Model(input, x)
 
 
@@ -94,15 +92,22 @@ siamese_model.compile(loss=contrastive_loss, optimizer=Adam(learning_rate=0.001)
 X_trainnn = np.array(X_train)
 a = X_trainnn[:, 0, :, :]
 b = X_trainnn[:, 1, :, :]
-# Train the mode,l
+
+# Train the model
 siamese_model.fit([a, b], y_train, epochs=10, batch_size=8, use_multiprocessing=True, workers=7, verbose=1)
 # Evaluate the model on the test set
-evaluation = siamese_model.evaluate(X_test, y_test, verbose=0)
+
+X_test = np.array(X_test)
+a = X_test[:, 0, :, :]
+b = X_test[:, 1, :, :]
+
+evaluation = siamese_model.evaluate([a,b], y_test, verbose=0)
+
 print("Test Loss:", evaluation[0])
 print("Test Accuracy:", evaluation[1])
 
 
-prediction = siamese_model.predict(X_test, verbose=0)
+prediction = siamese_model.predict([a,b], verbose=0)
 
 pass
 
