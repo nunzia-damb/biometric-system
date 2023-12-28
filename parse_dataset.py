@@ -5,6 +5,8 @@ import tensorflow as tf
 import numpy as np
 import os
 
+from sklearn.model_selection import train_test_split
+
 PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
 # PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
 
@@ -410,13 +412,33 @@ def generate_couples(users_data) -> tuple[list, list]:
     """users_data is a list of UserData. It returns a list of positive negative and couples"""
     cg = CoupleGenerator(users_data)
     p = cg.generate_positive_couples()
-    n = cg.generate_negative_couples(0)
-    return n, p
+    # n = cg.generate_negative_couples(0)
+    return [1,2,3], p
+
+
+def get_dataset():
+    uds = read_from_zip()
+    n, p = generate_couples(uds)
+    shape = p[0][0].shape
+
+    y_neg = np.zeros(len(n))
+    y_pos = np.ones(len(p))
+    X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(n, y_neg, test_size=1 / 3, random_state=1127)
+    X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(p, y_pos, test_size=1 / 3, random_state=1127)
+
+    X_train = X_train_neg + X_train_pos
+    y_train = np.concatenate((y_train_neg, y_train_pos), axis=0)
+
+    X_test = X_test_neg + X_test_pos
+    y_test = np.concatenate((y_test_neg, y_test_pos), axis=0)
+
+    return X_train, X_test, y_train, y_test, shape
+
 
 def main2():
-    uds = read_from_zip()
-    generate_couples(uds)
-    pass
+    get_dataset()
+
+
 def main():
     listdir = os.listdir(PATH)
     from time import time as t

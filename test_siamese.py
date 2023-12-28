@@ -15,7 +15,8 @@ def generate_pairs():
     Generate pairs of positive and negatives keystrokes split in train and test
     :return: X_test, X_train, y_test, y_train where
     """
-    from parse_dataset import X_test, X_train, y_test, y_train, shape
+    from parse_dataset import get_dataset
+    X_train, X_test, y_train, y_test, shape = get_dataset()
     return X_test, X_train, y_test, y_train, shape
 
 
