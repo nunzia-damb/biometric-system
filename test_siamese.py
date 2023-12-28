@@ -5,6 +5,8 @@ from keras.optimizers import Adam
 from keras.losses import binary_crossentropy
 from keras import backend as K
 from keras.layers import Lambda
+from matplotlib import pyplot as plt
+from sklearn.metrics import roc_curve, auc
 
 
 # Function to generate random sequences
@@ -69,11 +71,20 @@ def create_siamese_model(input_shape):
 
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
-    x = Dense(128, activation='relu')(input)
+    x = Dropout(0.4)(input)
+    x = Dense(256, activation='relu')(x)
+    x = Dropout(0.4)(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.4)(x)
     x = Dense(64, activation='relu')(x)
+    x = Dropout(0.4)(x)
     x = Dense(32, activation='relu')(x)
+    x = Dropout(0.4)(x)
     x = Dense(16, activation='relu')(x)
+    x = Dropout(0.4)(x)
     x = Dense(8, activation='relu')(x)
+    x = Dropout(0.4)(x)
+    x = Dense(1, activation='sigmoid')(x)
     return Model(input, x)
 
 
@@ -109,9 +120,17 @@ evaluation = siamese_model.evaluate([a,b], y_test, verbose=0)
 print("Test Loss:", evaluation[0])
 print("Test Accuracy:", evaluation[1])
 
-
-prediction = siamese_model.predict([a,b], verbose=0)
-
+prediction = siamese_model.predict([a,b], verbose=0).ravel()
+fpr, tpr, thresholds = roc_curve(y_test, prediction)
+auc_keras = auc(fpr, tpr)
+print(auc_keras)
+plt.figure(1)
+plt.plot([0, 1], [0, 1], 'k--')
+plt.plot(fpr, tpr, label='Siamese (area = {:.3f})'.format(auc_keras))
+plt.xlabel('False positive rate')
+plt.ylabel('True positive rate')
+plt.title('ROC curve')
+plt.show()
 pass
 
 

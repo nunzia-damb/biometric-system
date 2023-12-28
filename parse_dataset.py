@@ -7,8 +7,8 @@ import os
 
 from sklearn.model_selection import train_test_split
 
-PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
-# PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
+#PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
+PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
 
 
 # fix random seed for reproducibility
@@ -412,13 +412,13 @@ def generate_couples(users_data) -> tuple[list, list]:
     """users_data is a list of UserData. It returns a list of positive negative and couples"""
     cg = CoupleGenerator(users_data)
     p = cg.generate_positive_couples()
-    # n = cg.generate_negative_couples(0)
-    return [1,2,3], p
+    n = cg.generate_negative_couples(0)
+    return n, p
 
 
 def get_dataset():
     uds = read_from_zip()
-    n, p = generate_couples(uds)
+    n, p = generate_couples(uds[:10])
     shape = p[0][0].shape
 
     y_neg = np.zeros(len(n))
