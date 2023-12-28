@@ -8,8 +8,8 @@ from sklearn.preprocessing import MinMaxScaler
 import keras.layers
 import tensorflow as tf
 
-PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
-# PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
+#PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
+PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
 
 import os
 
@@ -40,7 +40,7 @@ b = '''102_keystrokes.txt
 1048_keystrokes.txt
 1053_keystrokes.txt
 1054_keystrokes.txt'''.split('\n')
-keystrokes = b
+keystrokes = a
 d = {}
 
 
