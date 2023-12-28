@@ -60,6 +60,7 @@ def create_siamese_model(input_shape):
     # sig = Dense(1, activation='sigmoid')(distance)
 
     model = Model(inputs=[input_a, input_b], outputs=distance)
+
     return model
 
 
@@ -67,10 +68,11 @@ def create_siamese_model(input_shape):
 
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
-    x = Dense(32, activation='relu')(input)
+    x = Dense(128, activation='relu')(input)
+    x = Dense(64, activation='relu')(x)
+    x = Dense(32, activation='relu')(x)
     x = Dense(16, activation='relu')(x)
     x = Dense(8, activation='relu')(x)
-    x = Dense(1, activation='sigmoid')(x)
     return Model(input, x)
 
 

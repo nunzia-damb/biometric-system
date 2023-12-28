@@ -1,17 +1,13 @@
-import itertools
-from math import floor
-
-import numpy as np
-from keras import layers
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-import keras.layers
+import json
+import multiprocessing
+import zipfile
 import tensorflow as tf
+import numpy as np
+import os
 
 PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
 # PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
 
-import os
 
 # fix random seed for reproducibility
 np.random.seed(42069)
@@ -19,34 +15,24 @@ np.random.seed(42069)
 a = '''103_keystrokes.txt
 105_keystrokes.txt'''.split('\n')
 
-b = '''102_keystrokes.txt
-103_keystrokes.txt
-105_keystrokes.txt
-106_keystrokes.txt
-109_keystrokes.txt
-112_keystrokes.txt
-113_keystrokes.txt
-114_keystrokes.txt
-1002_keystrokes.txt
-1005_keystrokes.txt
-1010_keystrokes.txt
-1011_keystrokes.txt
-1015_keystrokes.txt
-1020_keystrokes.txt
-1024_keystrokes.txt
-1027_keystrokes.txt
-1030_keystrokes.txt
-1047_keystrokes.txt
-1048_keystrokes.txt
-1053_keystrokes.txt
-1054_keystrokes.txt'''.split('\n')
+
+def get_files():
+    from files import files
+    return files
+
+
+b = get_files().split('\n')
 keystrokes = b
 d = {}
 
 
 class DataParser(object):
+    class IntFromFloat(object):
+        def __call__(self, s):
+            return int(float(s))
+
     def __init__(self, files, *, base_path='', types=None, remove_headers=None, header_injectors=None,
-                 normalize_size=None):
+                 normalize_size=None, parallel=False, n_workers=1):
         """
         :param files: list of files to parse
         :param base_path: base path for files (final path = base_path + files)
@@ -56,7 +42,11 @@ class DataParser(object):
                 extract their values
         :param normalize_size: object SizeNormalization apply padding and truncations
         """
-        self.types = [int, int, str, str, int, int, int, str, int] if types is None else types
+        self.parallel = parallel
+        self.n_workers = n_workers
+        self.types = [int, int, str, str, DataParser.IntFromFloat(), DataParser.IntFromFloat(),
+                      DataParser.IntFromFloat(), str,
+                      int] if types is None else types
         self.remove_headers = remove_headers if remove_headers is not None else []
         self.header_injectors = header_injectors if header_injectors is not None else []
         self.files = files
@@ -71,8 +61,21 @@ class DataParser(object):
     def get_shape(self):
         return self.normalize_size.padding.height, len(self.user_data[0].headers)
 
+    def parallel_parse(self):
+        import multiprocessing
+        # dump_phrases_partial = partial(dump_phrases)
+
+        with multiprocessing.Pool(self.n_workers) as pool:
+            ans = pool.starmap(self.parse_file, [(file,) for file in self.files])
+            print(ans)
+
     def parse(self):
         for file in self.files:
+            self.parse_file(file)
+        return self.user_data
+
+    def parse_file(self, file):
+        try:
             with open(self.base_path + file, 'r', encoding='utf-8') as fl:
                 headers = fl.readline().strip().split('\t')
                 lines = fl.readlines()
@@ -87,7 +90,10 @@ class DataParser(object):
             if self.normalize_size is not None:
                 ud = self.normalize_size(ud)
             self.user_data.append(ud)
-
+        except UnicodeDecodeError as unierror:
+            print(file, unierror)
+        except Exception as e:
+            print(file, e)
         return self.user_data
 
     def remove_headers_columns(self, user_data, headers):
@@ -128,6 +134,7 @@ class UserData(object):
     def _split_phrases(self, lines):
         sentence = -1
         data_line, phrases = [], []
+        ignored = 0
         for index in range(len(lines)):
             line = lines[index]
             l_split = line.split('\t')
@@ -136,8 +143,12 @@ class UserData(object):
                 data_line = []
             sentence = int(l_split[1])
             l_split[-1] = l_split[-1].rstrip()  # remove \n
-            l_split = self._convert_type(l_split)
-            data_line.append(l_split)
+            try:
+                l_split = self._convert_type(l_split)
+                data_line.append(l_split)
+            except:
+                print('ignoring', lines[index])
+                ignored += 1
         phrases.append(data_line)
         return phrases
 
@@ -238,7 +249,7 @@ def add_pp_latency(user_data: UserData):
     for phrase in user_data.phrases:
         phrase[0].append(0)
         for line_index in range(1, len(phrase)):
-            pp_lat = phrase[line_index][press_time_index] - phrase[line_index - 1][press_time_index]
+            pp_lat = abs(phrase[line_index][press_time_index] - phrase[line_index - 1][press_time_index])
             phrase[line_index].append(pp_lat)
 
 
@@ -248,7 +259,7 @@ def add_rp_latency(user_data: UserData):
     for phrase in user_data.phrases:
         phrase[0].append(0)
         for line_index in range(1, len(phrase)):
-            rp_lat = phrase[line_index][press_time_index] - phrase[line_index - 1][release_time_index]
+            rp_lat = abs(phrase[line_index][press_time_index] - phrase[line_index - 1][release_time_index])
             phrase[line_index].append(rp_lat)
 
 
@@ -279,7 +290,7 @@ class CoupleGenerator(object):
         self.positive_couples = couples
         return couples
 
-    def generate_negative_couples(self):
+    def generate_negative_couples(self, maximum):
         import itertools as it
         couples = []
         for user_data1 in self.users_data:
@@ -287,6 +298,7 @@ class CoupleGenerator(object):
                 if user_data1 == user_data2:
                     continue
                 neg_comb = list(it.product(user_data1, user_data2))
+
                 couples.extend(neg_comb)
         # couples = [list(it.product(user_data1, user_data2)) for user_data1 in self.users_data for user_data2 in
         #            self.users_data if user_data1 != user_data2]
@@ -294,57 +306,133 @@ class CoupleGenerator(object):
         return couples
 
 
-from time import time as t
+height_normalization = 100
 
-start_time = t()
-height_normalization = 70
-data_parser = DataParser(keystrokes, base_path=PATH,
-                         remove_headers=['TEST_SECTION_ID', 'SENTENCE',
-                                         'USER_INPUT', 'KEYSTROKE_ID',
-                                         'LETTER', 'PARTICIPANT_ID', 'PRESS_TIME', 'RELEASE_TIME'],
-                         header_injectors=[
-                             HeaderInjector('HOLD_LATENCY', add_hold_time),
-                             HeaderInjector('PP_LATENCY', add_pp_latency),
-                             HeaderInjector('RP_LATENCY', add_rp_latency),
-                         ],
-                         normalize_size=SizeNormalization(
-                             truncate=TruncateUserData(max_height=height_normalization, padding_value=-1),
-                             padding=PaddingUserData(min_height=height_normalization, padding_value=-1),
-                         ),
-                         )
-data_parser.parse()
+# data_parser.parse()
 # it would be best to normalize before doing couples
 
-cg = CoupleGenerator(data_parser.user_data)
-p = cg.generate_positive_couples()
-n = cg.generate_negative_couples()
+# cg = CoupleGenerator(data_parser.user_data)
+# p = cg.generate_positive_couples()
+# n = cg.generate_negative_couples()
+#
+# print('time spent', t() - start_time)
+# y_neg = np.zeros(len(n))
+# y_pos = np.ones(len(p))
+# X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(n, y_neg, test_size=1 / 3, random_state=1127)
+# X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(p, y_pos, test_size=1 / 3, random_state=1127)
+# del y_neg, y_pos, p, n, cg
+# pass
 
-print('time spent', t() - start_time)
-y_neg = np.zeros(len(n))
-y_pos = np.ones(len(p))
-X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(n, y_neg, test_size=1 / 3, random_state=1127)
-X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(p, y_pos, test_size=1 / 3, random_state=1127)
-del y_neg, y_pos, p, n, cg
-pass
-
-X_train = X_train_neg + X_train_pos
-y_train = np.concatenate((y_train_neg, y_train_pos), axis=0)
-
-X_test = X_test_neg + X_test_pos
-y_test = np.concatenate((y_test_neg, y_test_pos), axis=0)
-shape = data_parser.get_shape()
+# X_train = X_train_neg + X_train_pos
+# y_train = np.concatenate((y_train_neg, y_train_pos), axis=0)
+#
+# X_test = X_test_neg + X_test_pos
+# y_test = np.concatenate((y_test_neg, y_test_pos), axis=0)
+# shape = data_parser.get_shape()
 # print(len(p)+len(n), len(y))
 
 # data normalization
 
+# write processed dataset into another dir
+to_path = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/keystrokes_parsed/'
+
+
+def dump_phrases(user_data: UserData):
+    with open(f"{to_path}{user_data.id}.json", "w", encoding='utf-8') as out_file:
+        json.dump([p.tolist() for p in user_data.phrases], out_file, indent=1)
+
+
+def dump_dataset(dataset: DataParser, to: str):
+    # from functools import partial
+    # import multiprocessing
+    # dump_phrases_partial = partial(dump_phrases)
+
+    # with multiprocessing.Pool(multiprocessing.cpu_count() - 1) as pool:
+    #     ans = pool.starmap(dump_phrases, [(user_data,) for user_data in dataset.user_data])
+    for ud in dataset.user_data:
+        dump_phrases(ud)
+
+
+# the json file where the output must be stored
 
 # print(padded_inputs)
+def process_file(res):
+    print(res)
+    dp = DataParser([res], base_path=PATH,
+                    remove_headers=['TEST_SECTION_ID', 'SENTENCE',
+                                    'USER_INPUT', 'KEYSTROKE_ID',
+                                    'LETTER', 'PARTICIPANT_ID', 'PRESS_TIME', 'RELEASE_TIME'],
+                    header_injectors=[
+                        HeaderInjector('HOLD_LATENCY', add_hold_time),
+                        HeaderInjector('PP_LATENCY', add_pp_latency),
+                        HeaderInjector('RP_LATENCY', add_rp_latency),
+                    ],
+                    normalize_size=SizeNormalization(
+                        truncate=TruncateUserData(max_height=height_normalization, padding_value=-1),
+                        padding=PaddingUserData(min_height=height_normalization, padding_value=-1),
+                    ),
+                    )
+    dp.parse()
+    dump_dataset(dataset=dp, to=to_path)
+    res.clear()
 
 
-# masked_output_pos = embedding(pos)
-# masked_output_neg = embedding(neg)
+class ProcessedUserData(UserData):
+    def __init__(self, userId, keystrokes=None):
+        self.id = userId
+        self.phrases = [] if keystrokes is None else keystrokes
 
-pass
+    def __iter__(self):
+        return super().__iter__()
+
+    @property
+    def phrases(self):
+        return self._phrases
+
+    @phrases.setter
+    def phrases(self, value):
+        self._phrases = np.array(value)
+
+
+def read_from_zip(file=f'data{os.sep}keystrokes_processed.zip'):
+    """Read dataset from zip file"""
+    uds = []
+    with zipfile.ZipFile(file, mode='r') as zip_ref:
+        for name in zip_ref.namelist():
+            ud = ProcessedUserData(name.split('.')[0])
+            name = zip_ref.read(name)
+            ud.phrases = json.loads(name)
+            uds.append(ud)
+    return uds
+
+
+def generate_couples(users_data) -> tuple[list, list]:
+    """users_data is a list of UserData. It returns a list of positive negative and couples"""
+    cg = CoupleGenerator(users_data)
+    p = cg.generate_positive_couples()
+    n = cg.generate_negative_couples(0)
+    return n, p
+
+def main2():
+    uds = read_from_zip()
+    generate_couples(uds)
+    pass
+def main():
+    listdir = os.listdir(PATH)
+    from time import time as t
+    print('starting')
+    start_time = t()
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1) as pool:
+        done = 0
+        for _ in pool.map(process_file, listdir, chunksize=len(listdir) / (multiprocessing.cpu_count() - 1)):
+            done += 1
+            print(f'Processed {(done / len(listdir)) * 100}')
+    print(f'DONE in {t() - start_time}')
+
+
+if __name__ == "__main__":
+    main2()
+
 # norm_pos = mean_zero(p)
 # norm_neg = mean_zero(n)
 # print(norm_pos, len(norm_pos))
