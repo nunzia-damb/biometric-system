@@ -149,17 +149,6 @@ ax.yaxis.set_ticklabels(['False', 'True'])
 
 ## Display the visualization of the Confusion Matrix.
 plt.show()
-prediction = siamese_model.predict([a_test, b_test], verbose=0).ravel()
 
-fpr, tpr, thresholds = roc_curve(y_test, prediction)
-auc_keras = auc(fpr, tpr)
-print(auc_keras)
-plt.figure(1)
-plt.plot([0, 1], [0, 1], 'k--')
-plt.plot(fpr, tpr, label='Siamese (area = {:.3f})'.format(auc_keras))
-plt.xlabel('False positive rate')
-plt.ylabel('True positive rate')
-plt.title('ROC curve')
-plt.show()
 
 pass
