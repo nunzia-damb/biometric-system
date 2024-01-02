@@ -7,9 +7,9 @@ from keras.losses import binary_crossentropy
 from keras import backend as K
 from keras.layers import Lambda
 from matplotlib import pyplot as plt
-from sklearn.metrics import roc_curve, auc, confusion_matrix
+from sklearn.metrics import roc_curve, auc, confusion_matrix, RocCurveDisplay, DetCurveDisplay
 from sklearn.preprocessing import StandardScaler
-
+import seaborn as sns
 
 # Function to generate random sequences
 
@@ -102,7 +102,6 @@ siamese_model.summary()
 # Compile the model
 siamese_model.compile(loss=contrastive_loss, optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
 
-
 scaler = StandardScaler()
 
 X_trainnn = np.array(X_train)
@@ -122,16 +121,34 @@ a, b = X_trainnn[:, 0, :, :], X_trainnn[:, 1, :, :]
 a_test, b_test = X_test[:, 0, :, :], X_test[:, 1, :, :]
 
 # Train the model
-siamese_model.fit([a, b], y_train, epochs=10, batch_size=8, validation_data=([a_test, b_test], y_test),
+siamese_model.fit([a, b], y_train, epochs=1, batch_size=8, validation_data=([a_test, b_test], y_test),
                   validation_freq=1, use_multiprocessing=True, workers=7, verbose=1)
 # Evaluate the model on the test set
-del a, b
 
 evaluation = siamese_model.evaluate([a_test, b_test], y_test, verbose=0)
 
 print("Test Loss:", evaluation[0])
 print("Test Accuracy:", evaluation[1])
 
+prediction = siamese_model.predict([a_test, b_test], verbose=0).ravel()
+RocCurveDisplay.from_predictions(y_test, prediction)
+DetCurveDisplay.from_predictions(y_test, prediction)
+plt.show()
+
+cm = confusion_matrix(y_test, np.argmax(siamese_model.predict([a_test, b_test], verbose=0), axis=-1))
+print(cm)
+ax = sns.heatmap(cm, annot=True, cmap='Blues')
+
+ax.set_title('Seaborn Confusion Matrix with labels\n\n')
+ax.set_xlabel('\nPredicted Values')
+ax.set_ylabel('Actual Values ')
+
+## Ticket labels - List must be in alphabetical order
+ax.xaxis.set_ticklabels(['False', 'True'])
+ax.yaxis.set_ticklabels(['False', 'True'])
+
+## Display the visualization of the Confusion Matrix.
+plt.show()
 prediction = siamese_model.predict([a_test, b_test], verbose=0).ravel()
 
 fpr, tpr, thresholds = roc_curve(y_test, prediction)
@@ -145,9 +162,4 @@ plt.ylabel('True positive rate')
 plt.title('ROC curve')
 plt.show()
 
-# cm = confusion_matrix(y_true, y_pred, labels=[int(k) for k in list(train_generator.class_indices.keys())])
-# print(cm)
-# disp = ConfusionMatrixDisplay(cm).plot(cmap='magma')
-# plt.savefig('report data/confusion_matrix.png')
-# plt.show()
 pass
