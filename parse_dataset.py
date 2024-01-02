@@ -274,7 +274,7 @@ def add_hold_time(user_data: UserData):
 
 
 class CoupleGenerator(object):
-    def __init__(self, users_data):
+    def __init__(self, users_data, max_len='pos'):
         self.users_data = users_data
         self.positive_couples = []
         self.negative_couples = []
@@ -295,17 +295,13 @@ class CoupleGenerator(object):
     def generate_negative_couples(self, maximum):
         import itertools as it
         couples = []
-        for user_data1 in self.users_data:
-            for user_data2 in self.users_data:
-                if user_data1 == user_data2:
-                    continue
-                neg_comb = list(it.product(user_data1, user_data2))
-
-                couples.extend(neg_comb)
+        for uid1 in range(len(self.users_data)):
+            neg_comb = list(it.product(self.users_data[uid1], self.users_data[(uid1 + 1) % len(self.users_data)]))
+            couples.extend(neg_comb)
         # couples = [list(it.product(user_data1, user_data2)) for user_data1 in self.users_data for user_data2 in
         #            self.users_data if user_data1 != user_data2]
-        self.negative_couples = couples
-        return couples
+        self.negative_couples = couples[:maximum]
+        return self.negative_couples
 
 
 height_normalization = 100
@@ -412,13 +408,17 @@ def generate_couples(users_data) -> tuple[list, list]:
     """users_data is a list of UserData. It returns a list of positive negative and couples"""
     cg = CoupleGenerator(users_data)
     p = cg.generate_positive_couples()
-    n = cg.generate_negative_couples(0)
+    n = cg.generate_negative_couples(maximum=len(p))
     return n, p
 
 
-def get_dataset():
+def get_dataset(cut=-1):
     uds = read_from_zip()
-    n, p = generate_couples(uds[:10])
+    if cut < 0:
+        n, p = generate_couples(uds[:])
+    else:
+        n, p = generate_couples(uds[:cut])
+
     shape = p[0][0].shape
 
     y_neg = np.zeros(len(n))
@@ -436,7 +436,7 @@ def get_dataset():
 
 
 def main2():
-    get_dataset()
+    get_dataset(10)
 
 
 def main():
