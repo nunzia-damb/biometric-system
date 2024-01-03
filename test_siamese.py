@@ -167,7 +167,7 @@ print("Test Loss:", evaluation[0])
 print("Test Accuracy:", evaluation[1])
 
 prediction = (siamese_model.predict([a_test, b_test], verbose=0).ravel()).astype(np.float64)
-# RocCurveDisplay.from_predictions(y_test, prediction)
+RocCurveDisplay.from_predictions(y_test, prediction)
 DetCurveDisplay.from_predictions(y_test, prediction)
 plt.show()
 
