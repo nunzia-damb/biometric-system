@@ -3,7 +3,11 @@
 def load_model(epoch):
     # Load the previously saved weights
     mymodel = create_siamese_model(input_shape)
-    mymodel.load_weights(f'checkpoints/cp-{epoch:04d}.ckpt')
+    if epoch >= 0:
+        mymodel.load_weights(f'checkpoints/cp-{epoch:04d}.ckpt')
+    else:
+        mymodel.load_weights(f'best_chkpt/cp-best.ckpt')
+
     return mymodel
 
 
@@ -18,7 +22,7 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None):
     DetCurveDisplay.from_predictions(y_test, prediction)
     plt.show()
 
-    prediction = (prediction > threshold).astype(np.float64)
+    prediction = (prediction > threshold).astype(np.bool8)
     cm = confusion_matrix(y_test, prediction)
     print(cm)
     ax = sns.heatmap(cm, annot=True, cmap='Blues')
@@ -33,7 +37,7 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None):
 
     ## Display the visualization of the Confusion Matrix.
     plt.show()
-    cr = classification_report(y_test, prediction, labels=None, target_names=['0.0', '1.0'], digits=4)
+    cr = classification_report(y_test, prediction, labels=None, target_names=['Positives', 'Negatives'], digits=4)
     print(cr)
 
     if history is not None:
@@ -55,8 +59,16 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None):
 
 
 if __name__ == '__main__':
-    from test_siamese import y_test, a_test, b_test, shape as input_shape, create_siamese_model
+    from test_siamese import create_siamese_model, standard_scaler
+    from parse_dataset import get_dataset
+    chkpt = int(input('insert checkpoint number; type -1 for the best of all '))
 
-    chkpt = int(input('insert checkpoint '))
-    siamese = create_siamese_model(input_shape)
-    report(siamese, b_test=b_test, a_test=a_test, y_test=y_test)
+    # generate a never seen dataset
+    x_val, y_true, input_shape = get_dataset(cut=-1, validation=True)
+    a_test, b_test = x_val[:, 0, :70, :], x_val[:, 1, :70, :]
+    input_shape = a_test.shape[1:]
+
+
+    # load model
+    siamese = load_model(chkpt)
+    report(siamese, b_test=b_test, a_test=a_test, y_test=y_true)

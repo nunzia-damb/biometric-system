@@ -412,10 +412,14 @@ def generate_couples(users_data) -> tuple[list, list]:
     return n, p
 
 
-def get_dataset(cut=-1):
-    uds = read_from_zip()
+def get_dataset(cut=-1, validation=False):
+    if not validation:
+        uds = read_from_zip()
+    else:
+        uds = read_from_zip(f'data{os.sep}never_seen.zip')
+
     if cut < 0:
-        n, p = generate_couples(uds[:])
+        n, p = generate_couples(uds)
     else:
         n, p = generate_couples(uds[:cut])
 
@@ -433,6 +437,7 @@ def get_dataset(cut=-1):
     y_test = np.concatenate((y_test_neg, y_test_pos), axis=0)
 
     return X_train, X_test, y_train, y_test, shape
+
 
 
 def main2():
