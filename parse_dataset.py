@@ -6,10 +6,10 @@ import numpy as np
 import os
 
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
-#PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
+# PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
 PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
-
 
 # fix random seed for reproducibility
 np.random.seed(42069)
@@ -421,8 +421,8 @@ def get_dataset(cut=-1):
 
     shape = p[0][0].shape
 
-    y_neg = np.zeros(len(n))
-    y_pos = np.ones(len(p))
+    y_neg = np.zeros(len(n), dtype=np.bool8)
+    y_pos = np.ones(len(p), dtype=np.bool8)
     X_train_neg, X_test_neg, y_train_neg, y_test_neg = train_test_split(n, y_neg, test_size=1 / 3, random_state=1127)
     X_train_pos, X_test_pos, y_train_pos, y_test_pos = train_test_split(p, y_pos, test_size=1 / 3, random_state=1127)
 

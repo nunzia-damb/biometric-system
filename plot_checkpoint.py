@@ -7,7 +7,7 @@ def load_model(epoch):
     return mymodel
 
 
-def report(model, *, a_test, b_test, y_test, threshold=0.5):
+def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None):
     import numpy as np
     from matplotlib import pyplot as plt
     from sklearn.metrics import RocCurveDisplay, DetCurveDisplay, confusion_matrix, classification_report
@@ -33,8 +33,25 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5):
 
     ## Display the visualization of the Confusion Matrix.
     plt.show()
-    cr = classification_report(y_test, prediction, labels=None, target_names=['0', '1'], digits=4)
+    cr = classification_report(y_test, prediction, labels=None, target_names=['0.0', '1.0'], digits=4)
     print(cr)
+
+    if history is not None:
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.show()
+
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'val'], loc='upper left')
+        plt.show()
 
 
 if __name__ == '__main__':

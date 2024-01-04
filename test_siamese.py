@@ -132,32 +132,38 @@ def load_callbacks():
                                   verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
 
-    return [history, cp_callback, early_stopping]
+    return [history, cp_callback]
 
 
 def normalize_dataset(X_train, X_test):
     scaler = StandardScaler()
-
     x_trainnn = np.array(X_train)
-    nsamples, nx, ny, nz = x_trainnn.shape
-    x_trainnn = x_trainnn.reshape((nsamples, nx * ny * nz))
-    x_trainnn = scaler.fit_transform(x_trainnn)
-    x_trainnn = x_trainnn.reshape((nsamples, nx, ny, nz))
+    x_testtt = np.array(X_test)
 
-    X_test = np.array(X_test)
-    nsamples, nx, ny, nz = X_test.shape
-    X_test = X_test.reshape((nsamples, nx * ny * nz))
-    X_test = scaler.fit_transform(X_test)
-    X_test = X_test.reshape((nsamples, nx, ny, nz))
+    nsamples_test, nx, ny, nz = x_testtt.shape
+    nsamples_train, nx, ny, nz = x_trainnn.shape
 
-    a, b = x_trainnn[:, 0, :, :], x_trainnn[:, 1, :, :]
+    x_trainnn = x_trainnn.reshape((nsamples_train, nx * ny * nz))
+    x_testtt = x_testtt.reshape((nsamples_test, nx * ny * nz))
 
-    a_test, b_test = X_test[:, 0, :, :], X_test[:, 1, :, :]
+    scaler = scaler.fit(np.concatenate((x_trainnn, x_testtt)))
 
-    return a, b, a_test, b_test
+    # apply normalizations
+    x_trainnn = scaler.transform(x_trainnn)
+    x_trainnn = x_trainnn.reshape((nsamples_train, nx, ny, nz))
+
+    x_testtt = scaler.transform(x_testtt)
+    x_testtt = x_testtt.reshape((nsamples_test, nx, ny, nz))
+
+    # separate siamese keystrokes
+    _a, _b = x_trainnn[:, 0, :, :], x_trainnn[:, 1, :, :]
+
+    _a_test, _b_test = x_testtt[:, 0, :, :], x_testtt[:, 1, :, :]
+
+    return _a, _b, _a_test, _b_test
 
 
-NUM_PAIRS = 30
+NUM_PAIRS = 100
 X_test, X_train, y_test, y_train, shape = generate_pairs(NUM_PAIRS)
 
 a, b, a_test, b_test = normalize_dataset(X_train, X_test)
@@ -176,7 +182,7 @@ if __name__ == '__main__':
     batch_size = 100
     steps_per_epoch = a.shape[0] // batch_size
     # Train the model
-    siamese_model.fit([a, b], y_train, epochs=100, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
+    siamese_model.fit([a, b], y_train, epochs=10000, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
                       validation_data=([a_test, b_test], y_test), callbacks=load_callbacks(),
                       validation_freq=1, use_multiprocessing=True, workers=7, verbose=1, shuffle=True)
     # Evaluate the model on the test set
