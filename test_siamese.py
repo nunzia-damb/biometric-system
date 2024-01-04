@@ -134,6 +134,7 @@ def load_callbacks():
 
     return [history, cp_callback, early_stopping]
 
+
 def normalize_dataset(X_train, X_test):
     scaler = StandardScaler()
 
@@ -156,7 +157,8 @@ def normalize_dataset(X_train, X_test):
     return a, b, a_test, b_test
 
 
-X_test, X_train, y_test, y_train, shape = generate_pairs(100)
+NUM_PAIRS = 30
+X_test, X_train, y_test, y_train, shape = generate_pairs(NUM_PAIRS)
 
 a, b, a_test, b_test = normalize_dataset(X_train, X_test)
 del X_test, X_train
@@ -171,10 +173,10 @@ if __name__ == '__main__':
 
     # Compile the model
     siamese_model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001, ), metrics=['accuracy'])
-
-
+    batch_size = 100
+    steps_per_epoch = a.shape[0] // batch_size
     # Train the model
-    siamese_model.fit([a, b], y_train, epochs=10, batch_size=100, steps_per_epoch=200,
+    siamese_model.fit([a, b], y_train, epochs=100, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
                       validation_data=([a_test, b_test], y_test), callbacks=load_callbacks(),
                       validation_freq=1, use_multiprocessing=True, workers=7, verbose=1, shuffle=True)
     # Evaluate the model on the test set
@@ -184,4 +186,6 @@ if __name__ == '__main__':
     print("Test Loss:", evaluation[0])
     print("Test Accuracy:", evaluation[1])
 
+    from plot_checkpoint import report
+    report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test)
 pass
