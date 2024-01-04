@@ -121,6 +121,8 @@ def load_callbacks():
 
     history = History()
     checkpoint_path = "checkpoints" + os.sep + "cp-{epoch:04d}.ckpt"
+    checkpoint_path_best_only = "best_chkpt" + os.sep + "cp-best.ckpt"
+
     # checkpoint_dir = os.path.dirname(checkpoint_path)
 
     # Create a callback that saves the model's weights
@@ -130,9 +132,15 @@ def load_callbacks():
                                   monitor='val_accuracy',
                                   mode='max',
                                   verbose=1)
+    cp_callback_best_only = ModelCheckpoint(filepath=checkpoint_path_best_only,
+                                            save_weights_only=True,
+                                            save_best_only=True,
+                                            monitor='val_accuracy',
+                                            mode='max',
+                                            verbose=0)
     early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
 
-    return [history, cp_callback]
+    return [history, cp_callback, cp_callback_best_only]
 
 
 def normalize_dataset(X_train, X_test):
@@ -180,7 +188,7 @@ if __name__ == '__main__':
     # Compile the model
     siamese_model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001, ), metrics=['accuracy'])
     batch_size = 100
-    steps_per_epoch = a.shape[0] // batch_size
+    steps_per_epoch = min(a.shape[0] // batch_size, 200)
     # Train the model
     siamese_model.fit([a, b], y_train, epochs=10000, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
                       validation_data=([a_test, b_test], y_test), callbacks=load_callbacks(),
@@ -193,5 +201,6 @@ if __name__ == '__main__':
     print("Test Accuracy:", evaluation[1])
 
     from plot_checkpoint import report
+
     report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test)
 pass
