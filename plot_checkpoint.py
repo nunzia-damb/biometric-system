@@ -11,7 +11,7 @@ def load_model(epoch):
     return mymodel
 
 
-def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None):
+def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None, save=False):
     import numpy as np
     from matplotlib import pyplot as plt
     from sklearn.metrics import RocCurveDisplay, DetCurveDisplay, confusion_matrix, classification_report
@@ -20,7 +20,10 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None):
     prediction = (model.predict([a_test, b_test], verbose=0).ravel()).astype(np.float64)
     RocCurveDisplay.from_predictions(y_test, prediction)
     DetCurveDisplay.from_predictions(y_test, prediction)
-    plt.show()
+    if not save:
+        plt.show()
+    else:
+        plt.savefig(f'')
 
     prediction = (prediction > threshold).astype(np.bool8)
     cm = confusion_matrix(y_test, prediction)

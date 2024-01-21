@@ -154,6 +154,9 @@ def normalize_dataset(X_train, X_test, scaler, fit=True):
     x_trainnn = np.array(X_train)
     x_testtt = np.array(X_test)
 
+    x_testtt = x_testtt[:, :, :70, :]
+    x_trainnn = x_trainnn[:, :, :70, :]
+
     nsamples_test, nx, ny, nz = x_testtt.shape
     nsamples_train, nx, ny, nz = x_trainnn.shape
 
@@ -178,9 +181,10 @@ def normalize_dataset(X_train, X_test, scaler, fit=True):
 
 NUM_PAIRS = 1000
 X_test, X_train, y_test, y_train, shape = generate_pairs(NUM_PAIRS)
-
+shape = list(shape)
 standard_scaler = StandardScaler()
 a, b, a_test, b_test, standard_scaler = normalize_dataset(X_train, X_test, standard_scaler)
+shape[0] = a.shape[1]
 
 save_scaler(standard_scaler, filename='./scaler.gz')
 
@@ -201,8 +205,11 @@ if __name__ == '__main__':
     batch_size = 100
     steps_per_epoch = min(a.shape[0] // batch_size, 200)
     callbacks = load_callbacks()
+
+    # siamese_model.load_weights('best_chkpt/cp-best.ckpt')
+
     # Train the model
-    siamese_model.fit([a, b], y_train, epochs=500, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
+    siamese_model.fit([a, b], y_train, epochs=2500, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
                       validation_data=([a_test, b_test], y_test), callbacks=callbacks,
                       validation_freq=1, use_multiprocessing=True, workers=7, verbose=1, shuffle=True)
     # Evaluate the model on the test set
@@ -214,9 +221,8 @@ if __name__ == '__main__':
 
     from plot_checkpoint import report
     print('evaluation on never seen dataset')
-    report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test, history=callbacks[0])
+    report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test, history=callbacks[0], save=True)
 
-    quit()
     X_train, X_test, y_train, y_test, _ = get_dataset(cut=-1, validation=True)
     X_test = np.concatenate((X_train, X_test))
     y_test = np.concatenate((y_train, y_test))
