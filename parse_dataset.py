@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 # PATH = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/'
-PATH = '/Users/nunziadambrosio/PycharmProjects/biometric-system/data/'
+PATH = '/home/tommaso/Downloads/KeyboardKeystrokes/Keystrokes/files/'
 
 # fix random seed for reproducibility
 np.random.seed(42069)
@@ -265,6 +265,16 @@ def add_rp_latency(user_data: UserData):
             phrase[line_index].append(rp_lat)
 
 
+def add_rr_latency(user_data: UserData):
+    release_time_index = user_data.headers.index('RELEASE_TIME')
+    # release_time_index = user_data.headers.index('RELEASE_TIME')
+    for phrase in user_data.phrases:
+        phrase[0].append(0)
+        for line_index in range(1, len(phrase)):
+            rr_lat = abs(phrase[line_index][release_time_index] - phrase[line_index - 1][release_time_index])
+            phrase[line_index].append(rr_lat)
+
+
 def add_hold_time(user_data: UserData):
     press_time_index = user_data.headers.index('PRESS_TIME')
     release_time_index = user_data.headers.index('RELEASE_TIME')
@@ -298,6 +308,8 @@ class CoupleGenerator(object):
         for uid1 in range(len(self.users_data)):
             neg_comb = list(it.product(self.users_data[uid1], self.users_data[(uid1 + 1) % len(self.users_data)]))
             couples.extend(neg_comb)
+            # neg_comb = list(it.product(self.users_data[uid1], self.users_data[(uid1 + 2) % len(self.users_data)]))
+            # couples.extend(neg_comb)
         # couples = [list(it.product(user_data1, user_data2)) for user_data1 in self.users_data for user_data2 in
         #            self.users_data if user_data1 != user_data2]
         self.negative_couples = couples[:maximum]
@@ -332,7 +344,7 @@ height_normalization = 100
 # data normalization
 
 # write processed dataset into another dir
-to_path = '/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/keystrokes_parsed/'
+to_path = '/home/tommaso/Downloads/newdata/'
 
 
 def dump_phrases(user_data: UserData):
@@ -364,6 +376,7 @@ def process_file(res):
                         HeaderInjector('HOLD_LATENCY', add_hold_time),
                         HeaderInjector('PP_LATENCY', add_pp_latency),
                         HeaderInjector('RP_LATENCY', add_rp_latency),
+                        HeaderInjector('RR_LATENCY', add_rr_latency),
                     ],
                     normalize_size=SizeNormalization(
                         truncate=TruncateUserData(max_height=height_normalization, padding_value=-1),
@@ -372,7 +385,6 @@ def process_file(res):
                     )
     dp.parse()
     dump_dataset(dataset=dp, to=to_path)
-    res.clear()
 
 
 class ProcessedUserData(UserData):
@@ -392,7 +404,7 @@ class ProcessedUserData(UserData):
         self._phrases = np.array(value)
 
 
-def read_from_zip(file=f'data{os.sep}keystrokes_processed.zip'):
+def read_from_zip(file=f'data{os.sep}new_samples_preprocessed.zip'):
     """Read dataset from zip file"""
     uds = []
     with zipfile.ZipFile(file, mode='r') as zip_ref:
@@ -439,7 +451,6 @@ def get_dataset(cut=-1, validation=False):
     return X_train, X_test, y_train, y_test, shape
 
 
-
 def main2():
     get_dataset(10)
 
@@ -449,16 +460,17 @@ def main():
     from time import time as t
     print('starting')
     start_time = t()
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1) as pool:
-        done = 0
-        for _ in pool.map(process_file, listdir, chunksize=len(listdir) / (multiprocessing.cpu_count() - 1)):
-            done += 1
+    done = 0
+    for f in listdir:
+        process_file(f)
+        done += 1
+        if int(done) % 9 == 0 and done != 0:
             print(f'Processed {(done / len(listdir)) * 100}')
     print(f'DONE in {t() - start_time}')
 
 
 if __name__ == "__main__":
-    main2()
+    main()
 
 # norm_pos = mean_zero(p)
 # norm_neg = mean_zero(n)

@@ -6,7 +6,9 @@ from keras import backend as K
 from keras.layers import Lambda
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler
-
+from joblib import dump as save_scaler
+from joblib import load as load_scaler
+from keras.initializers import RandomNormal
 from parse_dataset import get_dataset
 
 
@@ -42,20 +44,23 @@ def contrastive_loss(y_true, y_pred):
 
 
 def create_siamese_model(input_shape):
+
+    initializer = RandomNormal(mean=0.0, stddev=0.01)
+
     def create_feature_extractor(input_shape):
         input_layer = Input(shape=input_shape)
-        x = Dense(128, activation='relu')(input_layer)
-        x = Dense(64, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
+        x = Dense(128, activation='relu', kernel_initializer=initializer)(input_layer)
+        x = Dense(64, activation='relu', kernel_initializer=initializer)(x)
+        x = Dense(32, activation='relu', kernel_initializer=initializer)(x)
         # x = Dense(16, activation='relu')(x)
         # output_layer = Dense(8, activation='relu')(x)
         return Model(inputs=input_layer, outputs=x)
 
     def create_decision_module(input_layer):
-        x = Dense(64, activation='relu')(input_layer)
-        x = Dense(32, activation='relu')(x)
+        x = Dense(64, activation='relu', kernel_initializer=initializer)(input_layer)
+        x = Dense(32, activation='relu', kernel_initializer=initializer)(x)
         # x = Dense(16, activation='relu')(x)
-        output_layer = Dense(1, activation='sigmoid')(x)
+        output_layer = Dense(1, activation='sigmoid', kernel_initializer=initializer)(x)
         return output_layer
 
     input_a = Input(shape=input_shape)
@@ -83,15 +88,15 @@ def create_siamese_model(input_shape):
 
     # data_parser.user_data = embedding(data_parser.user_data[0].phrases[0])
     # mask = Masking(mask_value=0, input_shape=input_shape)
-    masked_a = Masking(mask_value=0, input_shape=input_shape)(input_a)
-    masked_b = Masking(mask_value=0, input_shape=input_shape)(input_b)
+    # masked_a = Masking(mask_value=0, input_shape=input_shape)(input_a)
+    # masked_b = Masking(mask_value=0, input_shape=input_shape)(input_b)
 
     # Create a shared feature extractor
     feature_extractor = create_feature_extractor(input_shape)
 
     # Connect both inputs to the shared feature extractor
-    feature_vector_a = feature_extractor(masked_a)
-    feature_vector_b = feature_extractor(masked_b)
+    feature_vector_a = feature_extractor(input_a)
+    feature_vector_b = feature_extractor(input_b)
 
     # concat = Concatenate()([feature_vector_A, feature_vector_B])
     # dense = Dense(64, activation='relu')(concat)
@@ -141,7 +146,7 @@ def load_callbacks():
                                             verbose=0)
     early_stopping = EarlyStopping(monitor='val_loss', patience=100, restore_best_weights=True)
 
-    return [history, cp_callback, cp_callback_best_only]
+    return [history, cp_callback_best_only]
 
 
 def normalize_dataset(X_train, X_test, scaler, fit=True):
@@ -177,23 +182,27 @@ X_test, X_train, y_test, y_train, shape = generate_pairs(NUM_PAIRS)
 standard_scaler = StandardScaler()
 a, b, a_test, b_test, standard_scaler = normalize_dataset(X_train, X_test, standard_scaler)
 
+save_scaler(standard_scaler, filename='./scaler.gz')
+
+pass
+
 if __name__ == '__main__':
     del X_test, X_train
 
     # Create siamese model
-    print(shape)
+    print('input shape', shape)
     input_shape = shape
     siamese_model = create_siamese_model(input_shape)
 
     siamese_model.summary()
 
     # Compile the model
-    siamese_model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001, ), metrics=['accuracy'])
+    siamese_model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
     batch_size = 100
     steps_per_epoch = min(a.shape[0] // batch_size, 200)
     callbacks = load_callbacks()
     # Train the model
-    siamese_model.fit([a, b], y_train, epochs=200, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
+    siamese_model.fit([a, b], y_train, epochs=500, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
                       validation_data=([a_test, b_test], y_test), callbacks=callbacks,
                       validation_freq=1, use_multiprocessing=True, workers=7, verbose=1, shuffle=True)
     # Evaluate the model on the test set
@@ -204,8 +213,10 @@ if __name__ == '__main__':
     print("Test Accuracy:", evaluation[1])
 
     from plot_checkpoint import report
-    del a, b, a_test, b_test, y_test, y_train  # delete heaviest data
     print('evaluation on never seen dataset')
+    report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test, history=callbacks[0])
+
+    quit()
     X_train, X_test, y_train, y_test, _ = get_dataset(cut=-1, validation=True)
     X_test = np.concatenate((X_train, X_test))
     y_test = np.concatenate((y_train, y_test))
@@ -213,7 +224,8 @@ if __name__ == '__main__':
     _, _, a_test, b_test, standard_scaler = normalize_dataset(X_test, X_test, standard_scaler, fit=False)
 
     evaluation = siamese_model.evaluate([a_test, b_test], y_test, verbose=0)
-
+    p = siamese_model.predict([a_test, b_test])
+    print(p)
     print("Test Loss:", evaluation[0])
     print("Test Accuracy:", evaluation[1])
 
