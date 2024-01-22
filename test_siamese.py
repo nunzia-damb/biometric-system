@@ -10,8 +10,8 @@ from joblib import dump as save_scaler
 from joblib import load as load_scaler
 from keras.initializers import RandomNormal
 from parse_dataset import get_dataset
-
-
+from plot_checkpoint import *
+import tensorflow as tf
 # Function to generate random sequences
 
 # Function to generate pairs of sequences and labels
@@ -198,7 +198,7 @@ if __name__ == '__main__':
 
     siamese_model.summary()
 
-    # siamese_model.load_weights('./best_chkpt/cp-best.ckpt')
+    siamese_model.load_weights('./best_chkpt/cp-best.ckpt')
 
 
     # Compile the model
@@ -209,9 +209,20 @@ if __name__ == '__main__':
     callbacks = load_callbacks()
 
     # siamese_model.load_weights('best_chkpt/cp-best.ckpt')
+    siamese_model = tf.keras.models.load_model('best_chkpt/best_model.h5')
+    evaluation = siamese_model.evaluate([a_test, b_test], y_test, verbose=1)
 
+    print("Test Loss:", evaluation[0])
+    print("Test Accuracy:", evaluation[1])
+
+    from plot_checkpoint import report, plot_err
+
+    print('evaluation on never seen dataset')
+    report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test, history=callbacks[0], save=True)
+
+    quit(0)
     # Train the model
-    siamese_model.fit([a, b], y_train, epochs=500, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
+    siamese_model.fit([a, b], y_train, epochs=200, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
                       validation_data=([a_test, b_test], y_test), callbacks=callbacks,
                       validation_freq=50, use_multiprocessing=True, workers=7, verbose=1, shuffle=True)
     # Evaluate the model on the test set
@@ -222,7 +233,7 @@ if __name__ == '__main__':
     print("Test Loss:", evaluation[0])
     print("Test Accuracy:", evaluation[1])
 
-    from plot_checkpoint import report
+    from plot_checkpoint import report, plot_err
 
     print('evaluation on never seen dataset')
     report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test, history=callbacks[0], save=True)

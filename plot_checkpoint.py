@@ -1,3 +1,4 @@
+from sklearn.metrics import roc_curve, det_curve
 
 
 def load_model(epoch):
@@ -11,6 +12,46 @@ def load_model(epoch):
     return mymodel
 
 
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def plot_err(frr, far, thresholds):
+    """
+    Plot FRR and FAR curves and identify Equal Error Rate (ERR).
+
+    Parameters:
+    - frr (numpy array): False Rejection Rate values.
+    - far (numpy array): False Acceptance Rate values.
+    - thresholds (numpy array): Decision thresholds.
+
+    Returns:
+    - err (float): Equal Error Rate (ERR).
+    """
+
+    # Plot FRR and FAR curves
+    plt.figure(figsize=(10, 6))
+    plt.plot(thresholds, frr, label='FRR')
+    plt.plot(thresholds, far, label='FAR')
+    plt.xlabel('Threshold')
+    plt.ylabel('Rate')
+    plt.title('FRR and FAR Curves')
+    plt.legend()
+    plt.grid(True)
+
+    # Find the index where FRR and FAR are closest
+    min_err_index = np.argmin(np.abs(frr - far))
+    err = (frr[min_err_index] + far[min_err_index]) / 2
+
+    # Plot ERR point
+    plt.scatter(thresholds[min_err_index], err, color='red', label=f'ERR: {err:.4f}')
+    plt.legend()
+
+    plt.show()
+
+    return err
+
+
 def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None, save=False):
     import numpy as np
     from matplotlib import pyplot as plt
@@ -18,6 +59,7 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None, save=F
     import seaborn as sns
 
     prediction = (model.predict([a_test, b_test], verbose=0).ravel()).astype(np.float64)
+
     RocCurveDisplay.from_predictions(y_test, prediction)
     DetCurveDisplay.from_predictions(y_test, prediction)
     if not save:
@@ -25,8 +67,8 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None, save=F
     else:
         plt.savefig(f'')
 
-    prediction = (prediction > threshold).astype(np.bool8)
-    cm = confusion_matrix(y_test, prediction)
+    prediction_bool = (prediction > threshold).astype(np.bool8)
+    cm = confusion_matrix(y_test, prediction_bool)
     print(cm)
     ax = sns.heatmap(cm, annot=True, cmap='Blues')
 
@@ -40,8 +82,14 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None, save=F
 
     ## Display the visualization of the Confusion Matrix.
     plt.show()
-    cr = classification_report(y_test, prediction, labels=None, target_names=['Positives', 'Negatives'], digits=4)
+    cr = classification_report(y_test, prediction_bool, labels=None, target_names=['Positives', 'Negatives'], digits=4)
     print(cr)
+
+    plt.show()
+
+    far, frr, thresholds = det_curve(y_test, prediction)
+    err = plot_err(frr=frr, far=far, thresholds=thresholds)
+    print(f'Equal Error Rate (ERR): {err:.4f}')
 
     if history is not None:
         plt.plot(history.history['accuracy'])
@@ -64,13 +112,13 @@ def report(model, *, a_test, b_test, y_test, threshold=0.5, history=None, save=F
 if __name__ == '__main__':
     from test_siamese import create_siamese_model, standard_scaler
     from parse_dataset import get_dataset
+
     chkpt = int(input('insert checkpoint number; type -1 for the best of all '))
 
     # generate a never seen dataset
     x_val, y_true, input_shape = get_dataset(cut=-1, validation=True)
     a_test, b_test = x_val[:, 0, :70, :], x_val[:, 1, :70, :]
     input_shape = a_test.shape[1:]
-
 
     # load model
     siamese = load_model(chkpt)
