@@ -404,11 +404,15 @@ class ProcessedUserData(UserData):
         self._phrases = np.array(value)
 
 
-def read_from_zip(file=f'data{os.sep}new_samples_preprocessed.zip'):
+def read_from_zip(file=f'data{os.sep}new_ks.zip', maximum=-1):
     """Read dataset from zip file"""
+    from random import sample
     uds = []
     with zipfile.ZipFile(file, mode='r') as zip_ref:
-        for name in zip_ref.namelist():
+        samples = zip_ref.namelist()
+        if maximum > 0:
+            samples = sample(samples, maximum)
+        for name in samples:
             ud = ProcessedUserData(name.split('.')[0])
             name = zip_ref.read(name)
             ud.phrases = json.loads(name)
@@ -424,11 +428,11 @@ def generate_couples(users_data) -> tuple[list, list]:
     return n, p
 
 
-def get_dataset(cut=-1, validation=False):
+def get_dataset(cut=-1, maximum_elemets=1000, validation=False):
     if not validation:
-        uds = read_from_zip()
+        uds = read_from_zip(maximum=maximum_elemets)
     else:
-        uds = read_from_zip(f'data{os.sep}never_seen.zip')
+        uds = read_from_zip(f'data{os.sep}never_seen.zip', maximum_elemets)
 
     if cut < 0:
         n, p = generate_couples(uds)

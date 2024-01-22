@@ -15,12 +15,12 @@ from parse_dataset import get_dataset
 # Function to generate random sequences
 
 # Function to generate pairs of sequences and labels
-def generate_pairs(cut=-1):
+def generate_pairs(cut=-1, max_samples=1000):
     """
     Generate pairs of positive and negatives keystrokes split in train and test
     :return: X_test, X_train, y_test, y_train where
     """
-    X_train, X_test, y_train, y_test, shape = get_dataset(cut)
+    X_train, X_test, y_train, y_test, shape = get_dataset(cut, max_samples)
     return X_test, X_train, y_test, y_train, shape
 
 
@@ -44,23 +44,22 @@ def contrastive_loss(y_true, y_pred):
 
 
 def create_siamese_model(input_shape):
-
     initializer = RandomNormal(mean=0.0, stddev=0.01)
 
     def create_feature_extractor(input_shape):
         input_layer = Input(shape=input_shape)
-        x = Dense(128, activation='relu', kernel_initializer=initializer)(input_layer)
-        x = Dense(64, activation='relu', kernel_initializer=initializer)(x)
-        x = Dense(32, activation='relu', kernel_initializer=initializer)(x)
+        x = Dense(128, activation='relu',  )(input_layer)
+        x = Dense(64, activation='relu',  )(x)
+        x = Dense(32, activation='relu',  )(x)
         # x = Dense(16, activation='relu')(x)
         # output_layer = Dense(8, activation='relu')(x)
         return Model(inputs=input_layer, outputs=x)
 
     def create_decision_module(input_layer):
-        x = Dense(64, activation='relu', kernel_initializer=initializer)(input_layer)
-        x = Dense(32, activation='relu', kernel_initializer=initializer)(x)
+        x = Dense(64, activation='relu',  )(input_layer)
+        x = Dense(32, activation='relu',  )(x)
         # x = Dense(16, activation='relu')(x)
-        output_layer = Dense(1, activation='sigmoid', kernel_initializer=initializer)(x)
+        output_layer = Dense(1, activation='sigmoid',  )(x)
         return output_layer
 
     input_a = Input(shape=input_shape)
@@ -141,16 +140,15 @@ def load_callbacks():
     cp_callback_best_only = ModelCheckpoint(filepath=checkpoint_path_best_only,
                                             save_weights_only=True,
                                             save_best_only=True,
-                                            monitor='val_accuracy',
+                                            monitor='accuracy',
                                             mode='max',
                                             verbose=0)
-    early_stopping = EarlyStopping(monitor='val_loss', patience=100, restore_best_weights=True)
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-    return [history, cp_callback_best_only]
+    return [history, cp_callback_best_only, early_stopping]
 
 
 def normalize_dataset(X_train, X_test, scaler, fit=True):
-
     x_trainnn = np.array(X_train)
     x_testtt = np.array(X_test)
 
@@ -179,12 +177,12 @@ def normalize_dataset(X_train, X_test, scaler, fit=True):
 
     return _a, _b, _a_test, _b_test, scaler
 
+
 NUM_PAIRS = 1000
-X_test, X_train, y_test, y_train, shape = generate_pairs(NUM_PAIRS)
-shape = list(shape)
+X_test, X_train, y_test, y_train, shape = generate_pairs(-1, NUM_PAIRS)
 standard_scaler = StandardScaler()
 a, b, a_test, b_test, standard_scaler = normalize_dataset(X_train, X_test, standard_scaler)
-shape[0] = a.shape[1]
+shape = list(a.shape)[1:]
 
 save_scaler(standard_scaler, filename='./scaler.gz')
 
@@ -200,8 +198,12 @@ if __name__ == '__main__':
 
     siamese_model.summary()
 
+    # siamese_model.load_weights('./best_chkpt/cp-best.ckpt')
+
+
     # Compile the model
     siamese_model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
+
     batch_size = 100
     steps_per_epoch = min(a.shape[0] // batch_size, 200)
     callbacks = load_callbacks()
@@ -209,10 +211,11 @@ if __name__ == '__main__':
     # siamese_model.load_weights('best_chkpt/cp-best.ckpt')
 
     # Train the model
-    siamese_model.fit([a, b], y_train, epochs=2500, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
+    siamese_model.fit([a, b], y_train, epochs=500, batch_size=batch_size, steps_per_epoch=steps_per_epoch,
                       validation_data=([a_test, b_test], y_test), callbacks=callbacks,
-                      validation_freq=1, use_multiprocessing=True, workers=7, verbose=1, shuffle=True)
+                      validation_freq=50, use_multiprocessing=True, workers=7, verbose=1, shuffle=True)
     # Evaluate the model on the test set
+    save_model(siamese_model, filepath='./best_chkpt/my_model.h5', save_format='h5')
 
     evaluation = siamese_model.evaluate([a_test, b_test], y_test, verbose=0)
 
@@ -220,6 +223,7 @@ if __name__ == '__main__':
     print("Test Accuracy:", evaluation[1])
 
     from plot_checkpoint import report
+
     print('evaluation on never seen dataset')
     report(siamese_model, a_test=a_test, b_test=b_test, y_test=y_test, history=callbacks[0], save=True)
 
