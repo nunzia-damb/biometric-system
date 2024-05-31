@@ -1,0 +1,21 @@
+files = '''/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105276_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105280_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105286_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105288_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105289_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105292_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105295_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105300_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105302_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105304_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105305_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105312_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105313_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105317_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105318_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105321_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105324_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105327_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105329_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105332_keystrokes.txt
+/media/tommy/Volume/Universita/Magistrale/Biometric Systems/project/Keystrokes/files/105333_keystrokes.txt'''
